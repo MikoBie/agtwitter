@@ -1,0 +1,16 @@
+# Dotenv config
+**/.env
+*.Renviron
+
+# Data
+data/**
+**/*.html
+
+**/*.Rproj
+.Rproj.user
+.Rhistory
+*.RData
+.Ruserdata
+
+*.vscode
+__pycache__/
