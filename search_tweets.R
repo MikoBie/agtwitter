@@ -55,7 +55,9 @@ twitter %>%
 
 Sys.sleep(60 * 15)
 
-while(twitter %>% nrow() > 0){
+iterator <- 10
+
+while((twitter %>% nrow() > 0) | (iterator > 1)){
   id <- min(twitter$status_id)
   
   twitter <- search_tweets2(q = WORDS,
@@ -66,7 +68,7 @@ while(twitter %>% nrow() > 0){
   twitter %>% 
     stream_out(con = con_out,
                pagesize = 1)
-  
+  iterator <- iterator - 1
   Sys.sleep(60 * 15)
 }
 
