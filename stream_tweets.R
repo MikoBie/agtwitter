@@ -26,26 +26,26 @@ WORDS <- c("kler",
            "arcybiskup",
            "smarzewski",
            "Smarzewski",
-	   "smarzowski",
-	   "Smarzowski",
+	         "smarzowski",
+	         "Smarzowski",
            "gajos",
            "Gajos",
-	   "Wienckiewicz",
-	   "wienckiewicz",
+	         "Wienckiewicz",
+	         "wienckiewicz",
            "Wieckiewicz",
            "Wieckiewicz",
            "wieckiewicz",
            "więckiewicz",
-	   "Jakubik",
+	         "Jakubik",
            "jakubik",
-	   "Jakubiak",
-	   "jakubiak",
-	   "Braciak",
-	   "braciak",
-	   "kulig",
-	   "Kulig",
+      	   "Jakubiak",
+      	   "jakubiak",
+      	   "Braciak",
+      	   "braciak",
+      	   "kulig",
+      	   "Kulig",
            "kulik",
-	   "Kulik"
+	         "Kulik",
            "kościół",
            "kosciol",
            "ksiadz",
@@ -55,13 +55,13 @@ WORDS <- c("kler",
   paste(collapse = ", ")
 
 con_out <- file(file.path(DATA_PATH,"stream.jl"), open="wb")
-  while(readLines("control.txt") == "CONTINUE"){
-    stream_tweets(q = WORDS,
-                  timeout = 60 * 90,
-                  parse = TRUE) %>%
-      filter(lang == "pl") %>%
-      stream_out(x = .,
-                 con = con_out,
-                 pagesize = 1)
-  }
+while (readLines("control.txt") == "CONTINUE"){
+  stream_tweets(q = WORDS,
+                timeout = 60 * 90,
+                parse = TRUE) %>%
+    filter(lang == "pl") %>%
+    stream_out(x = .,
+               con = con_out,
+               pagesize = 1)
+}
 close(con_out)
