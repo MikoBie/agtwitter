@@ -14,7 +14,7 @@ if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, require, character.only = TRUE)
 
 
-cat('\Set variables')
+cat('\nSet variables')
 ROOT_PATH <- getwd()
 DATA_PATH <- file.path(ROOT_PATH,"data")
 WORDS <- c("kler",
