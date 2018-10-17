@@ -5,6 +5,7 @@
 # Data
 data/**
 **/*.html
+*.json
 
 **/*.Rproj
 .Rproj.user

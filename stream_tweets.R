@@ -57,7 +57,7 @@ WORDS <- c("kler",
 con_out <- file(file.path(DATA_PATH,"stream.jl"), open="wb")
 while (readLines("control.txt") == "CONTINUE"){
   stream_tweets(q = WORDS,
-                timeout = 60 * 90,
+                timeout = 60 * 15,
                 parse = TRUE) %>%
     filter(lang == "pl") %>%
     stream_out(x = .,
