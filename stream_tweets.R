@@ -25,7 +25,7 @@ while (readLines("control.txt") == "CONTINUE"){
     as.character() %>%
     paste(collapse = ", ")
   stream_tweets(q = WORDS,
-                timeout = 30,
+                timeout = 60*9,
                 parse = TRUE) %>%
     filter(lang == "pl") %>%
     stream_out(x = .,
