@@ -50,6 +50,6 @@ while (readLines("control.txt") == "CONTINUE"){
     as.character() %>%
     paste(collapse = ", ")
   stream_to_json(words = WORDS,
-                 con = con)
+                 con = con_out)
 }
 close(con_out)
