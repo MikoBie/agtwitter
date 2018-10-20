@@ -16,7 +16,7 @@ lapply(list.of.packages, require, character.only = TRUE)
 cat('\nSet variables')
 ROOT_PATH <- getwd()
 DATA_PATH <- file.path(ROOT_PATH,"data")
-FILE_NAME <- "stream2.jl"
+FILE_NAME <- "stream3.jl"
 
 con_out <- file(file.path(DATA_PATH,FILE_NAME), open="wb")
 while (readLines("control.txt") == "CONTINUE"){
