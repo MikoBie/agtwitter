@@ -16,7 +16,7 @@ lapply(list.of.packages, require, character.only = TRUE)
 stream_to_json <- function(words, con){
   tryCatch(
     stream_tweets(q = words,
-                  timeout = 60*9,
+                  timeout = 60 * 9,
                   parse = TRUE) %>%
       filter(lang == "pl") %>%
       stream_out(x = .,
@@ -51,5 +51,10 @@ while (readLines("control.txt") == "CONTINUE"){
     paste(collapse = ", ")
   stream_to_json(words = WORDS,
                  con = con_out)
+  if (file.info(file.path(DATA_PATH,FILE_NAME))$size > 100000000) {
+    close(con_out)
+    FILE_NAME <- paste0("stream",TIME)
+    con_out <- file(file.path(DATA_PATH,FILE_NAME), open="wb")
+  }
 }
 close(con_out)

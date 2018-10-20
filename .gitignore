@@ -6,6 +6,8 @@
 data/**
 **/*.html
 *.json
+morfeusz/**
+**/**/Przymiarki_cache
 
 **/*.Rproj
 .Rproj.user
