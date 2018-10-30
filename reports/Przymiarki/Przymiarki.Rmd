@@ -3,7 +3,6 @@ title: "Przymiarki"
 output:
   html_notebook:
     toc: yes
-runtime: shiny
 ---
 
 ```{r global_options, include = FALSE}
@@ -13,8 +12,8 @@ knitr::opts_chunk$set(echo = FALSE,
                       message = FALSE,
                       include = FALSE,
                       fig.align = "center",
-                      fig.height = 3,
-                      fig.width = 3,
+                      fig.height = 4,
+                      fig.width = 8,
                       verbose = FALSE)
     
 ```
@@ -69,7 +68,7 @@ To co widać powiedziałbym, że nie jest specjalnie ciekawe i nie jest też teg
 
 * `lang` - język, w którym napisany jest tweet. Jest automatycznie rozpoznawany przez Twittera.
 
-* `source` - jaki klient został wykorzystany do stworzenia tweeta. Można w miarę dokładnie powiedzieć nie tylko czy użyto strony internetowej czy smartfona, ale też czy był to telefon z Androidem czy IOSem. W tym przypadku był to Trumpa iPhone, którego najczęściej używa do tweetowania, choć czasem używa też komputera. Z ostatnich 100 Jego tweetów 95 było z iPhone'a, a tylko 5 z komputera przy użyciu Media Studio, które służy do zarządzania wieloma kontami. Można więc wnioskować, że niekoniecznie napisał go przy pomocy swoich małych dłoni.
+* `source` - jaki klient został wykorzystany do stworzenia tweeta. Można w miarę dokładnie powiedzieć nie tylko czy użyto strony internetowej czy smartfona, ale też czy był to telefon z Androidem czy IOSem. W tym przypadku był to Trumpa iPhone, którego najczęściej używa do tweetowania, choć czasem używa też komputera. Z ostatnich 100 Jego tweetów 95 było z iPhone'a, a tylko 5 z komputera przy użyciu Media Studio, które służy do zarządzania wieloma kontami. Można więc wnioskować, że te 5 niekoniecznie napisał przy pomocy swoich małych dłoni.
 
 * `is_quote` - czy ten tweet to jest cytat. W tym przypadku odpowiedź brzmi nie.   
 
@@ -91,7 +90,7 @@ To co widać powiedziałbym, że nie jest specjalnie ciekawe i nie jest też teg
 
 * `reply_to_screen_name` - unikalna nazwa użytkownika do którego to jest odpowiedź.
 
-* `geo_coords`, `coords_coords` i `bbox_coords` - to są potencjalnie ciekawe dane za pomocą, których można wyszukiwać tweety z danego miejsca. Jednak w większości ludzie mają wyłączoną lokalizację, więc moim zdaniem wyszukiwania tweetów po lokalizacji mija się z celem, bo dostaje się tylko tweety tych ludzi, którzy pozwalają na lokalizację.
+* `geo_coords`, `coords_coords` i `bbox_coords` - to są potencjalnie ciekawe dane za pomocą, których można wyszukiwać tweety z danego miejsca. Jednak w większości ludzie mają wyłączoną lokalizację, więc moim zdaniem wyszukiwanie tweetów po lokalizacji mija się z celem, bo dostaje się tylko tweety tych ludzi, którzy pozwalają na lokalizację.
 
 Ściągając przez API jednego tweeta dostaje się nie tylko informacje dotyczące samego tweeta, ale też mnóstwo informacji na temat użytkownika, który go stworzył. Poniżej to jak wygląda profil konta Przywódcy Wolnego Świata z poziomu zwykłego użytkownika.
 
@@ -136,7 +135,7 @@ Jest to podanie czyjegoś tweeta osobom, które obserwują nasze konto, a niekon
 ![](pics/retweet.png)
 
 
-W przypadku retweeta dostajemy wszystkie te same informacje, które poprzednio dostaliśmy o tweecie. Jednak Twitter retweet uznaje jako tweet, więc np. `created_at` będzie to moment, w którym Trump retweetował tego tweeta. Tak samo będzie z `name` czy też `source`. Szczęśliwie Twitter dostarcza też informacje o oryginalnym tweecie U.S. Marines: `retweet_created_at`, `retweet_screen_name`, `retweet_source` i `retweet_status_id`. Poza tym dostajemy też trochę informacji na temat konta U.S. Marines: `retweet_user_id`, `retweet_statuses_count`, `retweet_followers_count`, `retweet_friends_count` i `retweet_description`. Moim zdaniem jedyna ciekawa rzecz, której nie dostajemy to język w jakim prowadzone jest konto U.S. Marines. Można to wyciągnąć ale już bezpośrednio z konta U.S. Marines co przy większej liczbie użytkowników jest czasochłonne.
+W przypadku retweeta dostajemy wszystkie te same informacje, które poprzednio dostaliśmy o tweecie bo Twitter retweet uznaje jako tweet, więc np. `created_at` będzie to moment, w którym Trump retweetował tego tweeta. Tak samo będzie z `name` czy też `source`. Szczęśliwie Twitter dostarcza też informacje o oryginalnym tweecie U.S. Marines: `retweet_created_at`, `retweet_screen_name`, `retweet_source` i `retweet_status_id`. Poza tym dostajemy też trochę informacji na temat konta U.S. Marines: `retweet_user_id`, `retweet_statuses_count`, `retweet_followers_count`, `retweet_friends_count` i `retweet_description`. Moim zdaniem jedyna ciekawa rzecz, której nie dostajemy to język w jakim prowadzone jest konto U.S. Marines. Można to wyciągnąć ale już bezpośrednio z konta U.S. Marines co przy większej liczbie użytkowników jest czasochłonne.
 
 ### quote
 
@@ -163,7 +162,7 @@ kler <- stream_in(file("../../data/kler.jl")) %>%
          docid = "id")
 ```
 
-Drugim filtrem, który zastosowałem było wybranie tylko tych słów, które rzeczywiście nas interesują. Przez takie a nie inne ustawienia słów kluczowych zebrały się też tweety dotyczące na przykład Marka Jakubiaka - kandydata na prezydenta Warszawy z Kukiz15 czy też rocznicy śmierci księdza Jerzego Popiełuszki. Innymi słowy jest więcej tweetów niż potrzeba, dlatego z tych $48305$ przefiltrowałem na razie tylko te, które explicite dotyczą kleru czyli zawierają słowa: kler, ksiądz, księża, ks., biskup, arcybiskup, kościół, kosciol, ksiadz, ksieza, smarzowski, gajos, kulik, jakubik, braciak, wieckiewicz i więckiewicz.
+Drugim filtrem, który zastosowałem było wybranie tylko tych tych tweetów, w których wsytępują słowa, które rzeczywiście nas interesują. Przez takie a nie inne ustawienia słów kluczowych zebrały się też tweety dotyczące na przykład Marka Jakubiaka - kandydata na prezydenta Warszawy z Kukiz15 czy też rocznicy śmierci księdza Jerzego Popiełuszki. Innymi słowy jest więcej tweetów niż potrzeba, dlatego z tych $48305$ przefiltrowałem na razie tylko te, które explicite dotyczą kleru czyli zawierają słowa: kler, ksiądz, księża, ks., biskup, arcybiskup, kościół, kosciol, ksiadz, ksieza, smarzowski, gajos, kulik, jakubik, braciak, wieckiewicz i więckiewicz. Ostatecznie zostało $26103$ tweetów.
 
 ```{r corpus_select}
 WORDS <- c("kler",
@@ -330,13 +329,13 @@ paz8_most_retweets <- kler %>%
   retweet_status_id
 ```
 
-Druga rzecz, która zwróciła moją uwagę to to, że 8 października mówiło się stosunkowo dużo klerze i jakubiku. Stawiam na to, że związane to było z tym, że to był poniedziałek po drugim weekendzie pokazywania tego filmu, więc pojawiły się wyniki oglądalności. W jakimś stopniu potwierdza to najczęściej retweetowany tweet tego dnia (`r kler %>% corpus_subset(created_at > start8) %>% corpus_subset(created_at < end8) %>% docvars() %>% group_by(retweet_status_id) %>% summarise(freq = n()) %>% filter(!is.na(retweet_status_id)) %>% arrange(desc(freq)) %>% slice(1) %$% freq`)
+Druga rzecz, która zwróciła moją uwagę to to, że 8 października mówiło się stosunkowo dużo klerze i jakubiku. Stawiam na to, że związane to było z tym, że to był poniedziałek po drugim weekendzie pokazywania tego filmu, więc pojawiły się wyniki oglądalności. W jakimś stopniu potwierdza to najczęściej retweetowany tweet tego dnia (`r kler %>% corpus_subset(created_at > start8) %>% corpus_subset(created_at < end8) %>% docvars() %>% group_by(retweet_status_id) %>% summarise(freq = n()) %>% filter(!is.na(retweet_status_id)) %>% arrange(desc(freq)) %>% slice(1) %$% freq`).
 
 > `r kler %>% corpus_subset(status_id %in% paz8_most_retweets) %>% texts()`
 
-Ogólnie problem jest tylko taki, że ciężko w przypadku historycznych tweetów opierać się na frekwencji bo nie są to wszystkie tweety z tego okresu, tylko dość losowa ich próbka. Tzn. teoretycznie to powinna być mieszanka napopularniejszych i najświeższych.
+Ogólnie problem jest tylko taki, że ciężko w przypadku historycznych tweetów opierać się na frekwencji bo nie są to wszystkie tweety z tego okresu, tylko dość losowa ich próbka. Tzn. teoretycznie to powinna być mieszanka najpopularniejszych i najświeższych.
 
-To co jeszcze zrobiłem to zaagregowałem tweety po dniach i sprawdziłem z grubsza rozkład słów w nich występujący. Oczywiście trudno wypatrzeć tam coś ciekawego bo tak jak pisałem na samym początku muszę się dobrze zastanowić jak uporać się z językiem polskim... Na razie dość arbitralnie usunąłem słowa, które nic nie wnoszą czyli: `r c("jest", "gdzie", "się", "sie", "tego", "mają", "maja", "ale", "chce","dla", "jednak", "tylko", "niej", "który", "ktory", "albo", "jak", "innego", "całą", "bierze", "wśród", "mimo", "jeśli", "czy", "mnie", "wam", "tym", "całe", "przed", "naprawdę", "wojciech", "dosadniej", "dalej", "każdy", "jego")`
+To co jeszcze zrobiłem to zaagregowałem tweety po dniach i sprawdziłem z grubsza rozkład słów w nich występujący. Oczywiście trudno wypatrzeć tam coś ciekawego bo tak jak pisałem na samym początku muszę się dobrze zastanowić jak uporać się z językiem polskim... Na razie dość arbitralnie usunąłem słowa, które nic nie wnoszą czyli: `r c("jest", "gdzie", "się", "sie", "tego", "mają", "maja", "ale", "chce","dla", "jednak", "tylko", "niej", "który", "ktory", "albo", "jak", "innego", "całą", "bierze", "wśród", "mimo", "jeśli", "czy", "mnie", "wam", "tym", "całe", "przed", "naprawdę", "wojciech", "dosadniej", "dalej", "każdy", "jego")`.
 
 ```{r aggregate, include = TRUE, message = FALSE}
 tokens %>%
@@ -373,12 +372,12 @@ tokens %>%
   
 ```
 
-Kolejną rzeczą, którą zrobiłem było policzenie inverse document frequency, na podstawie, którego można zobaczyć jakie słowa są specyficzne dla danego dnia. Jest to dość proste bo wzrój jest następujący:
+Kolejną rzeczą, którą zrobiłem było policzenie inverse document frequency, na podstawie, którego można zobaczyć jakie słowa są specyficzne dla danego dnia. Jest to dość proste bo wzór jest następujący:
 
 $$idf(word)=ln(\frac{n_{documents}}{n_{document\ contatining\ word}})$$ 
-gdzie $n_{documents}$ to liczba dokumentów, a $n_{number\ containing\ word}$ - liczba dokumentów zawirajacych dane słowo.
+gdzie $n_{documents}$ to liczba dokumentów, a $n_{number\ containing\ word}$ - liczba dokumentów zawierających dane słowo.
 
-```{r idf}
+```{r idf, include = TRUE, message = FALSE}
 tokens %>%
   docvars() %>%
   mutate(created_at = created_at %>% ymd_hms() %>% day) %>%
@@ -416,12 +415,12 @@ tokens %>%
 
 ```
 
-Jedyne co można tutaj zobaczyć, a w zasadzie czego nie ma to słowa po których wyszukiwaliśmy. Powiedziałbym, że niewprost pokazuje, że rzeczywiście każdego dnia pojawiały się tweety na temat kościoła czy też kleru.
+Jedyne co można tutaj zobaczyć, a w zasadzie czego nie ma to słowa po których wyszukiwaliśmy. Powiedziałbym, że nie wprost pokazuje to, że rzeczywiście każdego dnia pojawiały się tweety na temat kościoła czy też kleru. Tak naprawdę to tego idf używa się do liczenia term frequency inverse document frequency, czyli po prostu liczenia ważonej częstości.
 
-Tak naprawdę to tego idf używa się do liczenia term frequency inverse document frequency, czyli po prostu liczenia ważonej częstości.
+Już absolutnie ostatnią rzeczą jest porównanie prawdopodobieństwa wyszukiwanych słów dla kolejnych dni.
 
-```{r tf_idf}
-table <- tokens %>%
+```{r tf_idf, include = TRUE, message = FALSE}
+tokens %>%
   docvars() %>%
   mutate(created_at = created_at %>% ymd_hms() %>% day) %>%
   select(status_id, created_at) %>%
@@ -436,35 +435,25 @@ table <- tokens %>%
   summarise(count = sum(count)) %>%
   bind_tf_idf(term = term, document = created_at, n = count) %>%
   select(created_at, term, tf) %>%
-  mutate(created_at = paste0("paz",created_at)) %>%
   ungroup() %>%
-  filter(term %in% c("kler", "ksiądz", "księża", "ks.", "biskup", "arcybiskup", "kościoł", "smarzowski", "gajos", "kulik", "jakubik", "braciak", "więckiewicz")) %>% 
-  spread(created_at, tf)
-```
-
-```{r tf_idf_plot, include = TRUE}
-selectInput(inputId = "xax",
-            label = "Co ma być na osi x?",
-            choices = colnames(table)[-1])
-selectInput(inputId = "yax",
-            label = "Co ma być na osi y?",
-            choices = colnames(table)[-1])
-
-renderPlot({
-  table %>%
-  select(term, input$xax, input$yax) %>%
-  filter(!is.na(input$xax) & !is.na(input$yax)) %>%
-  ggplot(aes(input$xax, input$yax)) +
-  geom_text(aes(label = term)) +
-  scale_x_log10(limits=c(0.0001,.2)) +
-  scale_y_log10(limits=c(0.0001,.2)) +
-  geom_abline(color = "red") +
+  filter(term %in% c("kler", "ksiądz", "księża", "ks.", "biskup", "arcybiskup", "kościoł", "smarzowski", "gajos", "kulik", "jakubik", "braciak", "więckiewicz")) %>%
+  ggplot(aes(x = term,
+             y = tf,
+             fill = as.factor(created_at))) +
+  facet_wrap(~created_at, scales = "free_y") +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
   theme_classic() +
-  labs(title = "Prawdopodobieństwo kluczowych słów dla 7 i 17 października",
-    subtitle = "",
-    caption = "")
-})
+  labs(x = NULL, y = NULL,
+    title = "Prawdopodobieństwa wyszukiwanych słów w tweetach",
+    subtitle = "Tweety zebrane między 7, a 17 października",
+    caption = "") 
 ```
+
+## Podsumowanie
+
+Moim zdaniem za dużo z tego co tutaj zrobiłem to nie widać ciekawego. Głównie dlatego, że nie robiłem żadnych analiz związanych z sentymentem czy też treścią tweetów. Już chyba mam pomysł jak to zrobić, bo w tym SMARCIE jeden z Włochów ostatnio pokazywał jak za pomocą machine learningu pozycjonuje słowa w dwuwymiarowej przestrzeni komfortu i pobudzenia (? po angielsku to jest comfort and arrousal). W każdym razie twierdzi, że ma już całkiem dobrze wytrenowaną sieć do języka polskiego (problematyczne jest oczywiście to, że On dużo rzeczy twierdzi...). Jego metoda wydaje się całkiem dobrym rozwiązaniem, lepszym niż do tej pory używane przez nas metody słownikowe. Z pozostałych dobrych wiadomości to już też chyba wiem jak lematyzować dobrze polskie słowa i jak robić part of speech tagging. Zła informacja jest tylko taka, że to trochę zajmie, nie umiem powiedzieć ile bo o ile teoretycznie to wiem co trzeba zrobić to w praktyce nigdy tego nie robiłem. Dobra wiadomość na koniec jest też taka, że te tweety dalej się ściągają i w ciągu ostatniego tygodnia ściągnęło się drugie tyle.
+
 <!-- CSS styling -->
 <style>
     html {
