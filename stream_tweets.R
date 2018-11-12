@@ -41,7 +41,7 @@ TIME <- Sys.time() %>%
                   replacement = "_") %>%
   str_replace_all(pattern = ":",
                   replacement = "_")
-FILE_NAME <- paste0("stream",TIME)
+FILE_NAME <- paste0("stream",TIME,".jl")
 
 con_out <- file(file.path(DATA_PATH,FILE_NAME), open="wb")
 while (readLines("control.txt") == "CONTINUE"){
@@ -53,7 +53,14 @@ while (readLines("control.txt") == "CONTINUE"){
                  con = con_out)
   if (file.info(file.path(DATA_PATH,FILE_NAME))$size > 100000000) {
     close(con_out)
-    FILE_NAME <- paste0("stream",TIME)
+    TIME <- Sys.time() %>%
+      str_replace_all(pattern = "-",
+                      replacement = "_") %>%
+      str_replace_all(pattern = " ",
+                      replacement = "_") %>%
+      str_replace_all(pattern = ":",
+                      replacement = "_")
+    FILE_NAME <- paste0("stream",TIME,".jl")
     con_out <- file(file.path(DATA_PATH,FILE_NAME), open="wb")
   }
 }

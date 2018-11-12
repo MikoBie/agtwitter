@@ -17,45 +17,12 @@ lapply(list.of.packages, require, character.only = TRUE)
 cat('\nSet variables')
 ROOT_PATH <- getwd()
 DATA_PATH <- file.path(ROOT_PATH,"data")
-WORDS <- c("kler",
-           "KLER",
-           "ksiądz",
-           "księża",
-           "ks.",
-           "ks",
-           "biskup",
-           "arcybiskup",
-           "smarzewski",
-           "Smarzewski",
-           "smarzowski",
-           "Smarzowski",
-           "gajos",
-           "Gajos",
-           "Wienckiewicz",
-           "wienckiewicz",
-           "Wieckiewicz",
-           "Wieckiewicz",
-           "wieckiewicz",
-           "więckiewicz",
-           "Jakubik",
-           "jakubik",
-           "Jakubiak",
-           "jakubiak",
-           "Braciak",
-           "braciak",
-           "kulig",
-           "Kulig",
-           "kulik",
-           "Kulik",
-           "kościół",
-           "kosciol",
-           "ksiadz",
-           "ksieza",
-           "pedofilia",
-           "pedofil") %>%
+WORDS <- read.csv2("words.csv") %$%
+  word %>%
+  as.character() %>%
   paste(collapse = " OR ")
 
-con_out <- file(file.path(DATA_PATH,"kler.jl"), open="wb")
+con_out <- file(file.path(DATA_PATH,"kler2.jl"), open="wb")
 
 cat('\nStart downloading')
 twitter <- search_tweets2(q = WORDS,
