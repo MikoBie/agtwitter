@@ -22,7 +22,7 @@ WORDS <- read.csv2("words.csv") %$%
   as.character() %>%
   paste(collapse = " OR ")
 
-con_out <- file(file.path(DATA_PATH,"kler2.jl"), open="wb")
+con_out <- file(file.path(DATA_PATH,"kler4.jl"), open="wb")
 
 cat('\nStart downloading')
 twitter <- search_tweets2(q = WORDS,
