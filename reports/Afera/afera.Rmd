@@ -1,0 +1,117 @@
+---
+title: "Afera taśmowa - sieć retweetów"
+description: |
+  Przymiarki do tego jak zrobić sieć retweetów przy okazji afery taśmowej.
+author:
+  - name: Mikołaj Biesaga
+    affiliation: ISS UW
+date: "`r Sys.Date()`"
+output: radix::radix_article
+---
+
+```{r setup, include=FALSE}
+# Do not bother with this chunk because it only defines some visual options for other chunks
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE,
+                      message = FALSE,
+                      include = FALSE,
+                      fig.align = "center",
+                      fig.height = 4,
+                      fig.width = 8,
+                      verbose = FALSE)
+```
+
+```{r load_libraries}
+library(tidyverse)
+library(magrittr)
+library(jsonlite)
+library(igraph)
+library(scales)
+library(purrr)
+```
+
+```{r load_data}
+tweets <- stream_in(file("../../data/stream2019_01_28_23_36_16.jl")) %>%
+  rbind(stream_in(file("../../data/stream2019_01_29_07_04_30.jl"))) %>%
+  rbind(stream_in(file("../../data/stream2019_01_29_13_52_10.jl")))
+```
+
+```{r clean_data}
+tweet_gt <- tweets %>%
+  filter(is_retweet) %>%
+  select( screen_name,retweet_screen_name, hashtags) %>%
+  rowwise() %>%
+  mutate(hashtags = unlist(hashtags) %>% paste(collapse = ", ")) %>%
+  count(retweet_screen_name, screen_name, hashtags) %>%
+  arrange(desc(n)) %>%
+  filter(n>2) %>%
+  graph_from_data_frame()
+```
+```{r vertex_size}
+pageRank <- page_rank(tweet_gt)$vector
+V(tweet_gt)$PageRank <- pageRank
+
+vertex_df <- as_data_frame(tweet_gt, 'vertices') %>%
+  mutate(PageRank = unlist(PageRank) %>% paste() %>% as.numeric()) %>%
+  arrange(desc(PageRank))
+
+total_tweets <- tweets %>%
+  select(screen_name, text) %>%
+  count(screen_name) %>%
+  rename(totalTweets = n)
+
+vertex_df <- vertex_df %>%
+  left_join(total_tweets, by = c("name" = "screen_name"))
+
+edges_df <- as_data_frame(tweet_gt, 'edges')
+
+tweet_gt <- graph_from_data_frame(edges_df, T, vertex_df)
+
+```
+```{r community}
+g_community <- walktrap.community(graph = tweet_gt)
+
+V(tweet_gt)$community <- g_community$membership 
+community_pal <- brewer_pal('qual')(length(unique(V(tweet_gt)$community))) %>%
+  data_frame(color = .) %>%
+  filter(!is.na(color)) %>%
+  mutate(color_n = 1:n())
+
+community_pal <- V(tweet_gt)$community %>%
+  data_frame(community = .) %>%
+  mutate(node = 1:n()) %>%
+  count(community) %>%
+  arrange(desc(n)) %>%
+  mutate(color_n = 1:n()) %>%
+  left_join(community_pal)
+  
+
+V(tweet_gt)$color <- map_chr(V(tweet_gt)$community, function(x){
+  community_pal %>%
+    filter(color_n == x) %$%
+    color
+})
+
+tweet_gt %>%
+  plot(
+  vertex.size = (V(.)$PageRank/max(V(.)$PageRank))*10 + 2,
+  vertex.label = '',
+  edge.arrow.size = .05,
+  edge.width = (E(.)$n/max(E(.)$n))*2,
+  asp = 0
+)
+
+tweet_gt %>% 
+  plot(
+      vertex.size = V(.)$PageRank * 200,
+      vertex.label = V(.)$community,
+      edge.arrow.size = .05,
+      edge.width = (E(.)$n/max(E(.)$n))*2,
+      asp = 0 #aspect ratio
+  )
+
+  
+tweet_gt %>% as_data_frame("vertices") %>% arrange(desc(PageRank))
+```
+
+
