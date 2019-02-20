@@ -17,7 +17,8 @@ cat('\nType in the name of the file and hit enter:')
 
 file_name <- file.info(dir()) %>%
   mutate(name = rownames(.)) %>%
-  filter(size > 0) %>%
+  arrange(desc(size)) %>%
+  slice(1) %>%
   filter(str_detect(name,".json")) %$%
   name
 
