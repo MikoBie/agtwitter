@@ -1,0 +1,114 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+library(mongolite)
+library(tidyverse)
+library(magrittr)
+library(quanteda)
+library(reticulate)
+library(lubridate)
+library(kableExtra)
+use_condaenv("narcy")
+```
+Agnieszka chciałaby zobaczyć na ile można zobaczyć jak zmienia się sentyment Zuckenberga do rządu. Jakie są relacje między rządem, a facebookiem w jego wypowiedziach.
+```{r}
+zuckenberg <- read_file(file("data/zuckenberg.txt"))
+zuckenberg1 <- read_file(file("data/zuckenberg1.txt"))
+```
+
+
+```{python}
+import spacy
+import numpy as np
+import pandas as pd
+from narcy.nlp.utils import document_factory
+from narcy.processors import doc_to_relations_df, doc_to_svos_df, doc_to_tokens_df
+
+nlp = spacy.load('en_core_web_sm')
+make_doc = document_factory(nlp)
+
+zuck = r.zuckenberg
+tokens = make_doc(zuck)
+tokens_df=doc_to_tokens_df(tokens)
+relations_df=doc_to_relations_df(tokens)
+
+zuck1 = r.zuckenberg1
+tokens1 = make_doc(zuck1)
+tokens_df1=doc_to_tokens_df(tokens1)
+relations_df1=doc_to_relations_df(tokens1)
+```
+
+```{r}
+tokens_df <- py$tokens_df1
+relations_df <- py$relations_df1
+
+```
+```{r}
+sents_g <- tokens_df %>%
+  filter(lemma == "government") %>%
+  pull(sentid)
+
+sents_f <- tokens_df %>%
+  filter(lemma == "facebook") %>%
+  pull(sentid)
+
+sents_w <- tokens_df %>%
+  filter(lemma == "whatsapp") %>%
+  pull(sentid)
+
+sents_i <- tokens_df %>%
+  filter(lemma == "instagram") %>%
+  pull(sentid)
+
+tokens_df %>%
+  filter(sentid %in% sents_w) %>%
+  group_by(sentid) %>%
+  summarise(sentiment = sum(sentiment),
+            valence = sum(valence),
+            n = n(),
+            sentiment = sentiment/sqrt(n),
+            valence = valence/sqrt(n)) %>%
+  mutate(company = "whatsapp") %>%
+  bind_rows(
+    tokens_df %>%
+      filter(sentid %in% sents_i) %>%
+      group_by(sentid) %>%
+      summarise(sentiment = sum(sentiment),
+                valence = sum(valence),
+                n = n(),
+                sentiment = sentiment/sqrt(n),
+                valence = valence/sqrt(n)) %>%
+      mutate(company = "instagram")
+  ) %>%
+  bind_rows(
+    tokens_df %>%
+      filter(sentid %in% sents_g) %>%
+      group_by(sentid) %>%
+      summarise(sentiment = sum(sentiment),
+                valence = sum(valence),
+                n = n(),
+                sentiment = sentiment/sqrt(n),
+                valence = valence/sqrt(n)) %>%
+      mutate(company = "goverment")
+  ) %>%
+  bind_rows(
+    tokens_df %>%
+      filter(sentid %in% sents_f) %>%
+      group_by(sentid) %>%
+      summarise(sentiment = sum(sentiment),
+                valence = sum(valence),
+                n = n(),
+                sentiment = sentiment/sqrt(n),
+                valence = valence/sqrt(n)) %>%
+      mutate(company = "facebook")
+  ) %>%
+  ggplot(aes(x = company, y = sentiment, fill = company)) +
+  geom_boxplot() +
+  theme_classic()
+  
+```
