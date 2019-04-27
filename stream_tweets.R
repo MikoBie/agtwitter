@@ -53,6 +53,7 @@ while (readLines("control.txt") == "CONTINUE"){
                  con = con_out)
   if (file.info(file.path(DATA_PATH,FILE_NAME))$size > 100000000) {
     close(con_out)
+    gc()
     TIME <- Sys.time() %>%
       str_replace_all(pattern = "-",
                       replacement = "_") %>%
