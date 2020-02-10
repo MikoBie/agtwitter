@@ -18,7 +18,7 @@ stream_to_json <- function(words, con){
     stream_tweets(q = words,
                   timeout = 60 * 9,
                   parse = TRUE) %>%
-      filter(lang == "pl") %>%
+      filter(lang %in% c('es','pl')) %>%
       stream_out(x = .,
                  con = con,
                  pagesize = 1),
