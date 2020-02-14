@@ -45,6 +45,6 @@ file_name_out <- file_name %>%
   
 cat('/nLoad data')
 parse_stream(file_name) %>%
-  filter(lang == "pl") %>%
+  filter(lang %in% c("pl","es")) %>%
   stream_out(file(file_name_out))
 
