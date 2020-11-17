@@ -1,0 +1,97 @@
+---
+title: "Twitter-0 | Obtaning and ussing access token"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: false
+---
+One of the biggest advantages of R is the community of people using it. Therefore, most of the problems you are going to face someone has already solved. You should befriend website like:
+http://stackoverflow.com or http://stackexchange.com - forums with answers to all the problems you will probably ever face. 
+http://r4ds.had.co.nz - R for Data Science by H. Wickham and G. Grolemund with everything you need to know about R for now.
+http://r-bloggers.com - short guides on specific topics in R.
+
+Best practice requires to load packages to the working envirement in the first chunk of the code.
+
+```{r loading_package}
+# Install packages we will need for downloading tweets and processing data. You only need to do it once.
+packages <- c("tidyverse","rtweet","httpuv")
+install.packages(packages)
+# Load package to current session. You need to do it every time you open R
+library(rtweet)
+```
+
+To be able to download tweets you need to have a Tiwtter account but also you need to create your own Twitter app. Although the latter might sound sophisticated but it is really not. Following point should guide you how to do so.
+
+1. If you do not have a Twitter account go to http://twitter.com and create one, otherwise skip this point.
+
+2. Go to http://apps.twitter.com and login to your Twitter account. It should be more or less straightforward, becasue you need to deliver name of your app, description and website. The only important thing is Callback URL. You should copy and paste there the following http://127.0.0.1:1410. Afterwards read and agree to the Twitter and Developer Agreement and press Create your Twitter Application.
+
+3. Once you have created your app, click the tab labelled Keys and Access Tokens. You need to copy Consumer Key (API Key) and Consumer Secret API (API Secret) and past it in the following R code.
+
+```{r}
+## Put here your app's name
+appname <- "Name of your App"
+
+## Paste here Consumer Key (API Key)
+key <- "Consumer Key (API Key)"
+
+## Paste here Consumer Secret API (API Secret)
+secret <- "Consumer Secret API (API Secret)"
+
+## If you run the following it should open your webbrowser and say that Authentication is completed. The code below created token named "twitter_token", which we need to tell Twitter who we are before we start downloading.
+twitter_token <- create_token(
+  app = appname,
+  consumer_key = key,
+  consumer_secret = secret)
+
+## The following code is not necessary but it saves time when you download data from Twitter often. Therefore it is advised to also run it.
+
+## It is a question where you want to save your twitter token. I would put it in your working directory but you can acctually put it wehrever you want.
+working_directory <- getwd()
+
+## combine with name for token
+file_name <- file.path(working_directory, "twitter_token.rds")
+
+## save token to home directory
+saveRDS(twitter_token, file = file_name)
+
+## the code below saves your token into environment, meaning you do not need to worry about it anymore.
+cat(file = file.path(working_directory, ".Renviron"),append = TRUE)
+```
+4. Before you start downloading tweets you need to restart R, meaning just close it and open again.
+
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>
+
+<hr>
+
+<!-- End of styling -->

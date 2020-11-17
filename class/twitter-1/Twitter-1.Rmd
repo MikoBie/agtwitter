@@ -1,0 +1,205 @@
+---
+title: "Twitter-1 | Collecting Twitter Data"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: yes
+---
+
+```{r load_packages}
+library(rtweet) # package to download tweets
+library(ggplot2) # package to draw graphs
+library(dplyr) # package to manipulate the data
+```
+## Search Tweets
+
+Hopefully, everything went smoothly with the previous script and now we are ready to download some tweets. To do so we will use a simple function `search_tweets()`, it returns tweets matching our query. Below we describe the most important arguments it takes, but if it is not clear enough you can just type `?search_tweets` into the console and you will get detailed documentation of this function but also it applies to other functions in R.  
+
+* `q` - Query to be searched, used to filter and select tweets. Must not to exceed maximum of 500 characters, like hashtags or words you want tweets to contain.  
+* `n` - Number of tweets to return. Maximum number is 18,000. To return more than that you need to add argument `retryonratelimit=TRUE`, however it will take some time because there is a limit of 18,000 tweets for 15 minutes.  
+* `type` - Specifies which type of search results to return from Twitter. Options are straightforward because are `"recent"`,`"mixed"`, and `"popular"`  
+* `include_rts` - name says it all, it takes `TRUE` if you want to include retweets and `FALSE` otherwise.  
+* `geocode` - Allows to specify area from which you want Twitter to search. There is a helper function `lookup_coords()` which returns coordinate of a given address.  
+
+```{r search_tweets}
+## search 1000 tweets about NBA
+NBA <- search_tweets(
+  q = "#NBA",
+  type = "recent",
+  n = 18000,
+  geocode = lookup_coords("Michigan"),
+  include_rts = TRUE
+)
+
+## To preview your collected tweets you need function View(). However, if you have a big number of tweets it works really slow and probably there is no much sense in diplaying them.
+View(NBA)
+
+## For big number of tweets, you can use either use head() or tail(), however the question remains if it is worth looking.
+head(NBA,n=60)
+tail(NBA,n=60)
+
+## From tweets we can easily go to users profile. It is simple as using function users_data(). Thank to this function you download profiles of specific users.
+users_data(NBA)
+
+## Example how we can see the data better.
+NBA %>%
+  group_by(is_retweet) %>%
+  ts_plot("3 hours") +
+  theme_minimal() +
+  theme_classic() +
+  scale_color_discrete("",labels=c("Orginal","Retweet")) +
+  labs(
+    x = NULL, y = NULL,
+    title = "Frequency of #NBA tweets from past 5 days",
+    subtitle = "Tweet counts aggregated using three-hour intervals",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+  )
+```
+
+## Stream Tweets
+
+Probably the most interesting function because it allows to stream tweets. Below we describe the most importand arguments it takes, however probably it is good to also read the documentation.  
+
+* `q` - Query to be streamed. To get random sample of tweets you set `q=""`, for keywords - `q="#NBA"`, to track specific users you either put the screen name or Twitter ID for example `q=2757372506`, for specific geolocation you need to deliver four latitude/longitude bounding box points for example `q=c(14.12286,49.00203,24.14589,54.90548)`  
+* `timeout` - Amount of time, in seconds, to leave connection open while streaming tweets. To stream idefinitely use `timeout=FALSE`, however we would not recommend doing it because it is really easy to clog up your computer's memory.  
+* `parse` - By defualt it is set to `TRUE`, which means that tweets are parsed to the Environment. For now it is ok, but when you want to stream more tweets it is not very efficient.  
+* `file_name` - Name of the file to which tweets are saved if `parse=FALSE`  
+
+```{r stream_tweets}
+## Streaming Tweets from Michigan
+Michigan <- stream_tweets(q=lookup_coords("Michigan"),
+                                  timeout=30)
+```
+
+## Get Friends
+
+A simple function which returns all accounts (users IDs) which user follows. It takes following arguments.
+
+* `users` - Screen name or user ID of users you want to know who they follow.  
+* `n` - Number of friends (user IDs) to return. There are two limits:
+    1) maximum returned number of friends is 5,000 for 15 minutes (however it rarely happens someone follows more than 5,000 because such account needs to meet certain requirenments). 
+    2) maximum number of querries is 15 for 15 minutes  
+* `retryonratelimit` - Likewise in `search_tweets()` it allows to automatically continue search after 15 minutes penalty expires.
+
+```{r get_friends}
+## Get friends of the best Cross County Skier ever
+JK_friends <- get_friends(users=2757372506)
+## The first row is profile of the person of which we were looking for friends
+JK_friends %>%
+  lookup_users() %>%
+  View
+```
+
+## Get Followers
+
+Similar function to `get_friends()` but instead of friends returns followers. It takes exactly the same arguments. The maximum number of followers to return is 75,000, unless `retryonratelimit=TRUE`, however you need to remeber that aquiring a large number of followers is time consuming and probably not worth it. In 24 hours you can get around 7,000,000 users IDs
+
+```{r get_followers}
+## Get followers of the best Cross County Skier ever
+JK_followers <- get_followers(2757372506)
+## List of 5,000 followers
+JK_followers %>%
+  lookup_users %>%
+  View
+```
+
+## Get Timelines
+
+Returns up to 3,200 tweets posted by specific Twitter users. It takes following arguments.
+
+* `user` - User names or user IDs.
+* `n` - Number of tweets to return.
+* `home` - Indicating whether to return timelines of given users or their user's home timeline feed. By defualt is set to `home=FALSE`, which means it returns tweets tweeted by given users.
+
+```{r get_timelines}
+## get user IDs of accounts followed by ESPN and BBC
+BBC_ESPN <- get_timelines(c("ESPNFC", "BBCSport"), n = 3200)
+
+## plot the frequency of tweets for each user over time
+tmls %>%
+  filter(created_at > "2017-12-21") %>%
+  group_by(screen_name) %>%
+  ts_plot("days") +
+  geom_point() +
+  theme_minimal() +
+  theme_classic() +
+  scale_color_discrete(name=NULL,
+                       labels=c("BBC Sport",
+                                "ESPN")) +
+   labs(x = NULL, y = NULL,
+    title = "Frequency of tweets posted by news organization",
+    subtitle = "Twitter status (tweet) counts aggregated by day from October/November 2017",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet") 
+```
+
+## Get Trends
+
+It returns trends for specific location. It takes following arguments.
+
+* `woeid` - Location from where you want to get trends (Yahoo! Where On Earth ID). You may either put name of the place (town or country) or supply latitude and longitude coordinates as WOEID (value consisting of 2 numeric values)
+* `lat` - Latitude in degrees.
+* `lng` - Longitude in degrees.
+* `exclude_hashtags` - By defualt `exculde_hashtags=FALSE` meaning that hashtags are included
+
+```{r get_trends}
+trends_Michigan <- get_trends(woeid=lookup_coords("Michigan"))
+```
+
+## Lookup
+
+This is a whole family of very usefull functions. We have already used `lookup_coords()`, which returned lattitude/longitude coordinate information for given location. Below we desribe only two others but there is more.
+
+* `lookup_users()` - returns information on up to 90,000 Twitter users, and as argument takes either users IDs or screen names.
+* `lookup_friendship()` - returns information on friendship between two Twitter users. It takes as arugments `source` - screen name or user id of source user, and `target` - screen name or user id of target user.
+
+```{r lookup}
+## Lookup users by their screen name
+kardashians <- lookup_users("KimKardashian,Kloekardashian,kourtneykardash")
+## Get their most recent tweets
+kardashians_tweets <- tweets_data(kardashians)
+## Lookup friendship between Kim and Khloe
+lookup_friendships(source="Kloekardashian",
+                   target="KimKardashian")
+lookup_friendships(source="KimKardashian",
+                   target="Kloekardashian")
+```
+
+There is much more you can do using `rtweet` package but those are the basic functions. As probably you can imagine you may easily use results of one function as input in another. For example getting tweets on trending topics seems to be straightforward by using `stream_tweets(get_trends(lookup_coords("Michigan")))`
+
+```
+
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>
+
+<hr>
+
+<!-- End of styling -->

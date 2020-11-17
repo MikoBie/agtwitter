@@ -1,0 +1,96 @@
+---
+title: "Homework-1 | Basic functions"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: true
+---
+
+```{r global_options, include = FALSE}
+# Do not bother with this chunk because it only defines some visual options for other chunks
+knitr::opts_chunk$set(
+    echo = TRUE, warning = FALSE, message = FALSE, include = TRUE, fig.align = "center", fig.height = 3, fig.width = 3
+)
+```
+
+```{r load_packages}
+## Load packages needed in this script
+library(rtweet) # for downloading data from Twitter
+library(dplyr) # for data transformation
+library(magrittr) # for data transformation
+library(tidytext) # for text analysing
+library(stringr) # for dealing with strings
+library(wordcloud) # for basic text visualisation
+library(ggplot2) # for graphics
+library(DataCombine) # for data transformation
+library(reshape2) # for data transformation
+```
+
+## Search tweets
+
+Use `search_tweets()` function to look for at least 1000 tweets about NBA game of your choice. Limit them only to the state in which the game was played. Include retweets.
+
+*Hint:* Remember about `lookup_coords()` function.
+
+```{r search_tweets}
+Homework1_1 <- ## put solution here
+
+## Save the data set
+Homework1_1 %>%
+  save_as_csv("Homework1_1.csv")
+```
+
+## Plot
+
+Plot frequency of original tweets and retweets. Aggregate tweets by 45 minutes.
+
+```{r plot}
+
+```
+
+## Get timeline
+
+Download home timeline of Serena Williams.
+
+*Hint:* User timeline consists of tweets tweetted only by a given user, while in home timeline are tweets posted by accounts followed by a user.
+
+```{r timeline}
+Homework1_2 <- ## put solution here
+  
+## Save timeline
+Homework1_2 %>%
+  save_as_csv("Homework1_2.csv")
+```
+
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        text-align: justify;
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>

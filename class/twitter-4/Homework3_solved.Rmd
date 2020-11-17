@@ -1,0 +1,147 @@
+---
+title: "Homework-3 | Creating dictionary"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: true
+---
+
+```{r global_options, include = FALSE}
+# Do not bother with this chunk because it only defines some visual options for other chunks
+knitr::opts_chunk$set(
+    echo = TRUE, warning = FALSE, message = FALSE, include = TRUE, fig.align = "center", fig.height = 3, fig.width = 3
+)
+```
+
+## Load packages
+
+```{r load_packages}
+## Load packages needed in this script
+library(rtweet) # for downloading data from Twitter
+library(dplyr) # for data transformation
+library(magrittr) # for data transformation
+library(tidytext) # for text analysing
+library(stringr) # for dealing with strings
+library(wordcloud) # for basic text visualisation
+library(ggplot2) # for graphics
+library(DataCombine) # for data transformation
+library(reshape2) # for data transformation
+library(tidyr) # for data transformation
+library(igraph) # for creating graphs
+library(ggraph) # for creating graphs
+library(widyr) # for ngrams statistics
+library(lubridate) # for date transformation
+library(feather) # for very light data format
+library(PMCMRplus) # for post hoc kruskal-walis test
+library(scales) # for scales
+source("clean_twitter_data.R") # load our custom cleaning function
+```
+
+## How to submit the Homework
+
+Please submit two files `Rmd` file with your homework and your original data set in `csv` format. In other words Homework3.Rmd and Homework3.tweets.csv.
+
+## General Hint
+
+This time this is a lot of work but it should be quite simple copy and paste, however probably a bit annoying. The reason I want you to repeat all of this yourself without much of hints is that I want you to face problems when I am here to help not when I am away.
+
+## Get timelines
+
+Download timelines of at least three accounts of your choice. You need to get at least 1000 tweets from each. The more different accounts, the better.
+*Solution:* It should be fairly straightforward. The only thing you need to be careful about is to copy the screen names correctly.
+
+```{r get_timelines}
+accounts <- c("ManUtd","ManCity","LFC","SpursOfficial")
+Homework3 <- get_timelines(accounts,n=1000)
+
+## Save to csv. It will create two files one Homework3.tweets.csv and other Homework3.users.csv
+Homework3 %>%
+  save_as_csv("Homework3.csv")
+```
+
+## Clean and transform the data
+
+Prepare the data set for computing tf-idf statistics.
+
+*Solution:* First, you need to compute word frequency by screen name and afterwards total number of words. It is redundant to what we did on Wednesday. The only thing which I skipped was deleting stop words because anyway they are deleted.
+
+```{r transform_data}
+## Compute total number of words in each category
+Homework3_words <- read_twitter_csv("Homework3.tweets.csv") %>%
+  ## Change from wide format to long. Now word is a record
+  unnest_tokens(input=text,
+                output=word) %>%
+  ## Count words in each category
+  count(screen_name,word,sort=TRUE) %>%
+  ## Unroup because the previous function by defualt leaves the data set grouped
+  ungroup() %>%
+  ## Group by categories
+  group_by(screen_name) %>%
+  ## Count words in each category
+  summarise(total=sum(n))
+
+## Add total number of words to word frequency
+Homework3_counts <- read_twitter_csv("Homework3.tweets.csv") %>%
+  ## Change from wide format to long. Now word is a record
+  unnest_tokens(input=text,
+                output=word) %>%
+  ## Count words frequency in each category
+  count(screen_name,word,sort=TRUE) %>%
+  ## Ungroup
+  ungroup() %>%
+  ## Join total number of words
+  left_join(Homework3_words)
+
+```
+
+## Create a dictionary
+
+Create a dictionary.
+
+*Solution:* It is just copy paste from `Twitter-3.Rmd`. The only difference is that it is even less interesting than beofore. If you know anything about football (sorry, soccer) you easily realise that all the items in this dictioanry are either names of players or hashtags about games. Therefore, it is kind of useless...
+
+```{r create_dictionary}
+## Compute tf-idf
+Homework3_tf_idf <- Homework3_counts %>%
+  bind_tf_idf(word, screen_name, n)
+
+## Create the dictioanry
+Homework3_dictionary <- Homework3_tf_idf %>%
+  ## Filter only terms which appear in one of the dictionaries
+  filter(idf==max(idf)) %>%
+  ## Select only two categories
+  select(screen_name, word)
+```
+
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        text-align: justify;
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>

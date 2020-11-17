@@ -1,0 +1,117 @@
+---
+title: "Homework-2 | Computing sentiment"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: true
+---
+
+```{r global_options, include = FALSE}
+# Do not bother with this chunk because it only defines some visual options for other chunks
+knitr::opts_chunk$set(
+    echo = TRUE, warning = FALSE, message = FALSE, include = TRUE, fig.align = "center", fig.height = 3, fig.width = 3
+)
+```
+
+## Load packages
+
+```{r load_packages}
+## Load packages needed in this script
+library(rtweet) # for downloading data from Twitter
+library(dplyr) # for data transformation
+library(magrittr) # for data transformation
+library(tidytext) # for text analysing
+library(stringr) # for dealing with strings
+library(wordcloud) # for basic text visualisation
+library(ggplot2) # for graphics
+library(DataCombine) # for data transformation
+library(reshape2) # for data transformation
+library(tidyr) # for data transformation
+library(igraph) # for creating graphs
+library(ggraph) # for creating graphs
+library(widyr) # for ngrams statistics
+library(lubridate) # for date transformation
+library(feather) # for very light data format
+library(PMCMRplus) # for post hoc kruskal-walis test
+library(scales) # for scales
+source("clean_twitter_data.R") # load our custom cleaning function
+data("stop_words") # load data frame with stop words.
+```
+
+## How to submit the Homework
+
+Please submit two files `Rmd` file with your homework and your original data set in `csv` format.
+
+## General Hint
+
+This time this is a lot of work but it should be quite simple copy and paste, however probably a bit annoying. The reason I want you to repeat all of this yourself without much of hints is that I want you to face problems when I am here to help not when I am away.
+
+## Aggregate sentiment
+
+Use the data from `Homework2.Rmd` and aggregate sentiment by tweets.
+
+```{r agrregate}
+Homework2_3 <- read_csv2("Homework2_2.csv") %>%
+  NULL ## replace NULL with solution, otherwise it returns error.
+```
+
+## Get timelines
+
+Download timelines of at least three accounts of your choice. You need to get at least 1000 tweets from each. The more different accounts, the better.
+
+```{r get_timelines}
+Homework3 <- NULL ## replace NULL with solution, otherwise it returns error.
+
+## Save to csv
+Homework3 %>%
+  save_as_csv("Homework3.csv")
+```
+
+## Clean and transform the data
+
+Prepare the data set for computing tf-idf statistics.
+
+```{r transform_data}
+
+```
+
+## Create a dictionary
+
+Create a dictionary.
+
+```{r create_dictionary}
+
+```
+
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        text-align: justify;
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>

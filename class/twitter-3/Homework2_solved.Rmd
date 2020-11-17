@@ -1,0 +1,225 @@
+---
+title: "Homework-2 | Computing sentiment"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: true
+---
+
+```{r global_options, include = FALSE}
+# Do not bother with this chunk because it only defines some visual options for other chunks
+knitr::opts_chunk$set(
+    echo = TRUE, warning = FALSE, message = FALSE, include = TRUE, fig.align = "center", fig.height = 3, fig.width = 3
+)
+```
+
+```{r load_packages}
+## Load packages needed in this script
+library(rtweet) # for downloading data from Twitter
+library(dplyr) # for data transformation
+library(magrittr) # for data transformation
+library(tidytext) # for text analysing
+library(stringr) # for dealing with strings
+library(wordcloud) # for basic text visualisation
+library(ggplot2) # for graphics
+library(DataCombine) # for data transformation
+library(reshape2) # for data transformation
+library(lubridate) # had to add this package for date manegment
+```
+## How to submit the Homework
+
+Please submit two files `Rmd` file with your homework and your original data set in `csv` format.
+
+## General Hint
+
+One of the most important things when you are coding is to name variables or files with proper names. Try to avoid using single letters or acronyms because they are confusing and you will forget what they stand for the moment you check your Facebook. If there is an error with loading a file double or triple check if it really is called like you think it is.
+
+## Transform data
+
+Take the data set from Homework 1 and perform following operation on it.
+
+* Select columns: text, created_at, screen_name, source, status_id, favorite_count, retweet_count, hashtags
+* Translate emojis, and delete the untranslatable ones
+* Delete words used in the query
+* Get rid of links from tweets
+* Split words into stems
+* Delete rows with stop words
+
+*Hint:* Read carefully what you are supposed to do and `Twitter-1.Rmd`
+
+*Solution:* It should be more or less straightforward because it was just about copying and pasting the code from `Twitter-2.Rmd`. The only thing which had to be changed was swapping `status_id` column with `screen_name` which are more or less the same.
+
+```{r transfomr_data}
+data("emojis")
+emojis <- emojis %>%
+  mutate(code=iconv(code,from="latin1",to="ascii",sub="byte")) %>%
+  mutate(description=paste0(" ",description," ")) 
+
+Homework2_1 <- read_twitter_csv("Homework1_1_2.tweets.csv") %>%
+  ## Select columns, we are going to use
+  select(text,created_at,user_id,screen_name,favorite_count,retweet_count,hashtags) %>%
+  ## Transform coding from one format to another #seeingIsBelieving
+  mutate(text=iconv(text,from="latin1",to="ascii",sub="byte")) %>%
+  ## Crucial transformation, which kept me awake one fun night. Transform dataset from one format to another. Without it the next function doesn't work
+  as.data.frame() %>%
+  ## Replace emojis with their descriptions. It takes a while and might return some warnings, but you can igonre them.
+  FindReplace(Var = "text",
+              replaceData = emojis,
+              from = "code", to = "description",
+              exact = FALSE) %>%
+  ## Getting rid of emojis which we were not able to match with description
+  mutate(text=str_replace_all(string=text,
+                              replacement="",
+                              pattern="(<[:alnum:]{2}>)")) %>%
+  ## Delete hashtags we used in the querry
+  mutate(text=str_replace_all(string=text,
+                              replacement="",
+                              pattern="(@warriors)|(@knicks)")) %>%
+  ## In each row in text column look for phrase containing link and replace it with nothing
+  mutate(text=str_replace_all(string=text,
+                              pattern="http[[:alnum:][:punct:]]*",
+                              replacement = "")) %>%
+  ## split words into stems
+  unnest_tokens(output=word,
+                input=text) %>%
+  ## Delete rows with stop words
+  anti_join(stop_words) 
+  
+```
+
+## Compute sentiment
+
+Use bing sentiment dictionary and compute sentiment for your NBA game data set.
+
+*Note:* Use the transformed data however do not load the saved file but use the object which is in environment. In other words you **can not** close RStudio between doing task one and task two from this Homework otherwise a unicorn dies...
+
+*Solution:* Probably nothing to comment.
+
+```{r compute_sentiment}
+sentiment <- get_sentiments("bing")
+
+Homework2_2 <- Homework2_1 %>%
+  inner_join(sentiment)
+
+write.csv2(Homework2_2,"Homework2_2.csv")
+```
+
+## Plot 
+
+Plot how sentiment changed over time aggregating tweets using one hour interval. Explain what might have influenced overall sentiment in your data set.
+
+*Challenging Challenge:* See which words load sentiment categories and delete the ones which load sentiment but should not. Justify why you delete each word.
+
+*Solution:* When I was writing this homework was not expecting it would be that challenging. I mean if I did not make a mistake in the script you probably would not have any problems. I think `Erratum.Rmd` should answer most of your questions. In the script below I aggregated time by one hour interval but you could have done it with the interval you fancied.
+
+```{r plot}
+Homework2_2 %>%
+  ## Add up words groupped by word and sentiment. Sort the results
+  count(word, sentiment, sort = TRUE) %>%
+  ## Group words by sentiment
+  group_by(sentiment) %>%
+  ## Filter ten most frequent words within each sentiment
+  top_n(10) %>%
+  ## Ungroup
+  ungroup() %>%
+  ## Reorder words by frequency
+  mutate(word = reorder(word, n)) %>%
+  ## Plot the chart. Define that words should be on x ax, frequency on y, and sentiment colored
+  ggplot(aes(x=word, y=n, fill = sentiment)) +
+  ## Get rid of legend
+  geom_col(show.legend = FALSE) +
+  ## Plot one chart for each sentiment type, and let the scale on y ax differ beetwen them
+  facet_wrap(~sentiment, scales = "free_y") +
+  ## Name the labs
+  labs(y = "Contribution to sentiment",
+       x = NULL) +
+  ## Flip axis
+  coord_flip() +
+  ## Define the theme of the chart
+  theme_classic()
+
+## I remove word golden because it obiously refers to Golden State Warriors not to anything else.
+word <- c("golden")
+
+## Update Data set
+Homework2_2 <- Homework2_2 %>%
+  anti_join(data_frame(word))
+
+## Draw the plot
+Homework2_2 %>%
+  ## Choose only positive and negative sentiment
+  filter(sentiment %in% c("positive","negative")) %>%
+  ## Create new variables
+         ## Extract day from the date
+  mutate(day=created_at %>% day,
+         ## Extract hour from the date
+         hour=created_at %>% hour,
+         ## Extract minute form the date
+         minute=created_at %>% minute) %>%
+  ## Create new variable time, which aggregates time by one hour minutes interval
+                        ## If minute less than 60 minutes set minutes equals 0
+  mutate(time=case_when(minute < 60 ~ paste0("18-01-",day," ",hour,":00:00")),
+         ## Convert variable time to date format. Super important
+        time=time %>% as_datetime(tz=NULL)) %>%
+  ## Plot bar chart. This time I am not defining axis here, because I want to use two different data sets match_events and FACup_sentiment
+  ggplot() +
+  ## Setting theme of the chart
+  theme_classic() +
+  ## Define axis, and say that we are interested with proportions not counts
+  geom_bar(aes(x=time,fill=sentiment),position="fill") +
+  ## Name the labs
+  labs(x = NULL, y = NULL,
+    title = "Proportion of sentiment on @warriors and @knicks between Jan 22 and Jan 30",
+    subtitle = "Tweets counts aggregated using one hour intervals",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet") +
+  ## Specify that we do not want to have name of the legend but just types of sentiment
+  scale_fill_discrete("")
+  
+```
+
+# Explanation
+
+The game was held in San Francisco, and we gathered tweets only from California so such a big percentage of negative tweets on a day before the game must be surprising. In the end when you live in California and tweet about NBA you probably support GSW not NYK. Therefore your tweets should be optimistic cause your team is the best in the league and Knicks are not that good even though they have Porzingis. However, probably the reason why there was such a big percentage of negative tweets is that on Jan 20 Warriors lost important game to Rockets. Although, it is still regular season and they have still the best record in the league, the game was important because most likely they are going to meet in the finals of Eastern Conference. DubNation has something to think about because this season in head to head Rockets lead 2-1.
+
+## It is a lot but
+
+Aggregate sentiment by tweets.
+
+```{r agrregate}
+#Homework2_3 <- NULL ## replace NULL with solution, otherwise it returns error.
+
+## Save solution
+#write.csv2(Homework2_3,"Homework2_3.csv")
+```
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        text-align: justify;
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>

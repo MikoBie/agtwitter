@@ -1,0 +1,719 @@
+---
+title: "Twitter-3 | More advanced text analysis"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: true
+---
+```{r global_options, include = FALSE}
+# Do not bother with this chunk because it only defines some visual options for other chunks
+knitr::opts_chunk$set(
+    echo = TRUE, warning = FALSE, message = FALSE, include = TRUE, fig.align = "center", fig.height = 2, fig.width = 2
+)
+```
+
+## What will we do in this script?
+Last time we learnt, hopefully, how to do some basic word analysis. More or less we talked about words frequency and sentiment. In this script we are going to do some more advanced things, however they still should be straightforward.
+
+## Beofore loading packages
+
+For some of you loading package `ggrpah` returned error. Below there is a solution to it. You just need to run the code below and everything should be fine.
+
+```{r solution}
+#install.packages("remotes")
+#library(remotes)
+#install_github("cran/viridisLite")
+#library(viridisLite)
+```
+
+As you probably noticed it is about installing two packages not really linked to ggraph. Without going too much into details you just need to run this chunk of the code once and afterwards you can forget about it.
+
+## Load and install packages
+
+Again we start with installing and loading packages. There is quite a few of them but most of them serve for data manipulation. The new thing is `source("clean_twitter_data.R")`. It is just our custom function written in the other script, which we load into this script.
+
+```{r load_packages}
+## Install packages for text analysis
+#packages <- c("reshape2","igraph","ggraph","widyr","feather","scales","lubridate","PMCMRplus")
+#install.packages(packages)
+
+## Load packages needed in this script
+library(rtweet) # for downloading data from Twitter
+library(dplyr) # for data transformation
+library(magrittr) # for data transformation
+library(tidytext) # for text analysing
+library(stringr) # for dealing with strings
+library(wordcloud) # for basic text visualisation
+library(ggplot2) # for graphics
+library(DataCombine) # for data transformation
+library(reshape2) # for data transformation
+library(tidyr) # for data transformation
+library(igraph) # for creating graphs
+library(ggraph) # for creating graphs
+library(widyr) # for ngrams statistics
+library(lubridate) # for date transformation
+library(feather) # for very light data format
+library(PMCMRplus) # for post hoc kruskal-walis test
+library(scales) # for scales
+source("clean_twitter_data.R") # load our custom cleaning function
+data("stop_words") # load data frame with stop words.
+```
+
+## Search/Stream Tweets
+
+However, first things first, we need some data to process. This time we will start with tweets from NBA, NFL, MLS and NHL official Twitter accounts. The code below would download the tweets, but to save time we have already done it at home. So, like in cooking shows we will load the data from the csv file we prepared before.
+
+You probably realized that when you use function `save_as_csv()` from `rtweet` it creates not one but two csv files. One is a data frame with tweets as records, and the other one with profiles of users who tweetted.
+
+```{r search_tweets}
+# ## Querry we run
+# NFL_NBA_MLS_NHL <- get_timelines(c("NFL","NBA","NHL","MLS"),
+#                           n=3200,
+#                           parse=TRUE)
+# ## Save to csv
+# save_as_csv(NFL_NBA_MLS_NHL, "NFL_NBA_MLA_NHL.csv")
+```
+
+## Transform data
+
+Last time we wanted to show you data set transformation step by step. However, since we are going to use more or less the same transformations on quite a few data sets, we put them in one function - `clean_twitter_data()`. It takes as an argument raw data frame from Twitter, and returns data frame with tweet, creation time, unique tweets id, unique users name, favorite count, retweet count, hashtags, logical variable if the tweet was a retweet, and logical variable if the tweet was a quote. The text of the tweet is almost ready for unnesting tokens because it does not contain links and emojis are translated, the only thing left to do is to remove hashtags used in the query if there were any. 
+
+```{r transform_data}
+# ## Clean the data with the use of our cleaning function
+# NFL_NBA_MLS_NHL <- read_twitter_csv("NFL_NBA_MLS_NHL.tweets.csv") %>%
+#   clean_twitter_data()
+# 
+# ## Save the result of the funciton because it takes a while
+# write.csv2(NFL_NBA_MLS_NHL,"NFL_NBA_MLS_NHL.csv")
+```
+
+## Term Frequency and Inverse Term Frequency
+
+One of the central concerns in text analysis is frequency of words in the document. Such a simple measure tells us more or less what the text is about. But, does it? Usually the most common words are stop words, which we have already learnt how to delete. With just one document or tweets on the same topic (hashtag or whatever we put in our query) word frequency without stop words should be enough, however what to do if we want to compare multiple documents like in NFL_NBA_MLS_NHL data set?
+
+We have a collection of tweets from NFL, NBA, MLS and NHL official Twitter accounts and we want to know the most important words for each source. In other words we want to look for words which are unique for one of the sources. Therefore, we will compute term frequency inverse document frequency (tf-idf), which tells us how important for a document a given word is. Basically, it multiplies frequency of a given word (tf) times weights (idf).
+
+$$idf(word)=ln(\frac{n_{documents}}{n_{document\ contatining\ word}})$$ 
+where $n_{documents}$ is number of documents, and $n_{number\ containing\ word}$ - number of documents containing word.
+
+### Data transformation for tf-idf
+
+The idea of tf-idf is to decrease importance of the common words which occur in all accounts (NFL, NBA, MLS, and NHL) tweets and increase importance of the words which are specific for one or some of them.
+
+```{r tf_idf_data_transformation}
+## Unnest tokens
+NFL_NBA_MLS_NHL_words <- read.csv2("NFL_NBA_MLS_NHL.csv") %>%
+  ## Convert format of the tweet from one to another. It is needed because we saved our file with the use of write.csv2 function.
+  mutate(text=as.character(text)) %>%
+  ## Unnest tokens
+  unnest_tokens(input=text,
+                output=word) %>%
+  ## Delete stop words
+  anti_join(stop_words)
+
+## Count total number of words for each timeline
+total_words <- NFL_NBA_MLS_NHL_words %>%
+  ## Count number of words
+  count(screen_name,word,sort=TRUE) %>%
+  ## Ungroup
+  ungroup() %>%
+  ## Group by screen name
+  group_by(screen_name) %>%
+  ## Return sum of words for each account
+  summarise(total=sum(n))
+
+## Count words
+NFL_NBA_MLS_NHL_count <- NFL_NBA_MLS_NHL_words %>%
+  ## Count words
+  count(screen_name,word,sort=TRUE) %>%
+  ## Ungroup
+  ungroup() %>%
+  ## Add total number of words to each word by joining by screen names
+  left_join(total_words)
+```
+
+### Compute tf-idf
+
+So computing tf-idf is quite easy, because there is a function `bind_tf_idf()` which does it for us. Thanks to the chart below we can identify words, which are somehow specific for each of the accounts.
+
+The second graph shows words which are common in NFL and NBA tweets. If the word is below red line it appears more often in NFL tweets, while when over in NBA tweets. You can try to make similar plots for all combinations in your data set.
+
+```{r tf_idf_visualisation}
+## Compute term frequency inverse document frequency
+NFL_NBA_MLS_NHL_count %>%
+  bind_tf_idf(word, screen_name, n) %>%
+  ## Arrange it in decreasing order
+  arrange(desc(tf_idf))
+
+## See specific words for all accounts
+NFL_NBA_MLS_NHL_count %>%
+  ## Compute term frequency inverse document frequency
+  bind_tf_idf(word, screen_name, n) %>%
+  ## Arrange the table in order of decreasing tf-idf
+  arrange(desc(tf_idf)) %>%
+  ## Convert words from one format to another.
+  mutate(word = factor(word, levels = rev(unique(word)))) %>% 
+  ## Group by account
+  group_by(screen_name) %>% 
+  ## Pick top 20 from each account
+  top_n(20) %>% 
+  ## Ungroup
+  ungroup %>%
+  ## Plot the graph with words and tf-idf on axis and account as color
+  ggplot(aes(word, tf_idf, fill = screen_name)) +
+  ## Plot bars without legend
+  geom_col(show.legend = FALSE) +
+  ## Name only y ax
+  labs(x = NULL, y = "tf-idf") +
+  ## Plot four graphs in each different account, two in each column and make it possible to have different values (words) on scales 
+  facet_wrap(~screen_name, ncol = 2, scales = "free") +
+  ## Flip the axis
+  coord_flip() +
+  ## Set theme
+  theme_classic() +
+  ## Put the title and label axis
+  labs(title = "The most influential words specific for MLS, NBA, NFL and NHL Twitter accounts",
+    subtitle = "",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet")
+
+## Compare words which appear in in NFL and NBA accounts.
+NFL_NBA_MLS_NHL_count %>%
+  ## compute tf-idf
+  bind_tf_idf(word, screen_name, n) %>%
+  ## Arrange the table in order of decreasing tf-idf
+  arrange(desc(tf_idf)) %>%
+  ## Select columns, screen name, word and word frequency
+  select(screen_name, word, tf) %>% 
+  ## Convert the data from lonf format to wide format
+  spread(screen_name, tf) %>%
+  ## Arrange the table in order of decreasing NFL and NBA
+  arrange(NFL, NBA) %>%
+  ## Get rid off words which do not appear in NFL and NBA accounts
+  filter(!is.na(NBA) & !is.na(NFL)) %>%
+  ## Get rid of numbers
+  filter(!str_detect(word, "\\d")) %>%
+  ## Plot the graph, speicfy the axis
+  ggplot(aes(NFL, NBA)) +
+  ## Draw words instead of points
+  geom_text(aes(label = word)) +
+  ## Convert scales from logarithm to percents and set limits from .001 to .5
+  scale_x_log10(labels = percent_format(),limits=c(0.001,.5)) +
+  scale_y_log10(labels = percent_format(),limits=c(0.001,.5)) +
+  ## Draw a diagonal line
+  geom_abline(color = "red") +
+  ## Set the theme
+  theme_classic() +
+  ## Name axis
+  labs(title = "Probability of common words between NFL and NBA accounts to appear in their tweets",
+    subtitle = "",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet")
+```
+
+### Application
+
+The tf-idf transformation is usually used instead of stop words dictionary. Words such "a, an and the" appear usually in all documents, so tf-idf for them is equal 0 (since $idf(word)=ln(1)=0 => tf(word) \times 0 = 0$). The advantage of such solution is that you do not need to update your stop words dictionary for each collection of words. Disadvantage, of course, is that you need to have at least two documents.
+
+The other use might be creating a dictionary. If you know that some tweets are in one category and other in the second you can easily find words which are specific for both categories. You just need to to find words with tf-idf value smaller than one. It is shown below how to create a dictionary.
+
+#### Creating dictionary
+
+You need to find words with the highest idf value because of the logarithm properties. In MLS_NHL_NBA_NHL example idf for words appearing only in one Twitter account would take value $1.386294$, for two - $0.6931472$, for three $0.2876821$, and for four $0$. The code below should guide you how to do it in practice
+
+```{r creating_dicitonary}
+## Take data set with words count
+NFLS_NBA_MLS_NHL_dictionary <- NFL_NBA_MLS_NHL_count %>%
+  ## Compute tf-idf 
+  bind_tf_idf(word, screen_name, n) %>%
+  ## Filter only maximum values of tf_idf value
+  filter(idf==max(idf)) %>%
+  ## Select only columns needed in dictionary, it means word and name of the account
+  select(screen_name,word) %>%
+  ## Change screen_name column's name to organization
+  rename(organization=screen_name)
+```
+
+Probably this dictionary is a bit dull because who would need dictionary to categorize people's tweets in terms of organization they talk about... However, this method is quite simple and effective in terms of categorizing tweets. 
+
+## Simple models of sentiment
+
+The last graph in previous section answers the most basic question which account is more probable to tweet with specific words. It is more or less boring question and easy to answer for all accounts (you might try to answer it at home). What we will do here is something more interesting. We are going to predict what is more probable NBA account tweeting something positive or negative?
+
+We need to admit that the approach we are going to take stands kind of in contradiction with what we have been talking about on Fridays. You probably remember we said that with Big Data you only need to use descriptive statistics or correlations. You are actually talking about population so there is no point of estimating means or any other statistics cause you have the truth parameters. In theory, yes that is still true, but in our example not necessary because we are still talking about samples, therefore we are using approach you have already known. We would say that it is hard to say where is the cutting point of using descriptive statistics, you need to decide about it yourself.
+
+### Visualisation
+
+Before we start let's look at graphs. The charts below show what are the top 3 most probable words from each sentiment category to appear in tweets from all sources. Some of the words appear only in one of the accounts, therefore not all have four probability bars.
+
+```{r simple_model}
+## Count total number of tweets from each source
+number_of_tweets <- read.csv2("NFL_NBA_MLS_NHL.csv") %>%
+  ## Group by screen name
+  group_by(screen_name) %$%
+  ## Compute frequency
+  table(screen_name) %>%
+  ## Convert the format
+  as_tibble() %>%
+  ## Rename variable
+  rename(tweets_nr=n)
+
+## Get sentiment
+sentiment <- get_sentiments("nrc")
+
+## Visualise words
+NFL_NBA_MLS_NHL_count %>%
+  ## Join total number of tweets from each source to the count data frame
+  left_join(number_of_tweets) %>%
+  ## Compute probability
+  mutate(prob=n/tweets_nr) %>%
+  ## Compute sentiment
+  inner_join(sentiment) %>%
+  ## Group by sentiment category and screen name
+  group_by(sentiment,screen_name) %>%
+  ## Pick words with top 5 probabilities for each screen name and sentiment category
+  top_n(3,wt=prob) %>%
+  ## Ungroup
+  ungroup() %>%
+  ## Reorder words so the ones with highest probability are first
+  mutate(word = reorder(word, prob)) %>%
+  ## Plot chart. Define axis and colour
+  ggplot(aes(word,(prob),fill=screen_name)) +
+  ## Draw separate plot for each sentiment category. Allow to have different words for each sentimetn category
+  facet_wrap(~sentiment, scales="free_y") +
+  ## Set position of the bars
+  geom_col(position="dodge") +
+  ## Set theme
+  theme_classic() +
+  ## Flip axis
+  coord_flip() +
+  ## Title and label axis
+  labs(x = "Probability", y = NULL,
+    title = "Probability of words appearing in tweets which load sentiment categories the most",
+    subtitle = "",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet") +
+  ## Specify names in the legend, and change default colors to red and blue
+  scale_fill_discrete("")
+```
+
+### Simple models
+
+If you look at the charts you will notice, obviously, that some of the words appear in tweets from all sources and some do not. Therefore, we can either limit words to the ones which were tweeted by all accounts or check if there are significant differences between probabilities of tweeting word with certain sentiment between sources. In other words what we are going to do now is to compare probabilities of using positive or negative word by NBA and NFL account (you can try to do MLS and NHL yourself). To do so we will use Kruskall-Wallis Rank Test. It is not the best approach we can use but for our purposes optimal in terms of how easy it is to compute. For more advanced things consider for example quantile regression (read documentation for package `quantreg`).
+
+Before we start we need to admit to something, we tried it at home and it did not work out as good as it should. Think about it what we want to comapre. Can we predict how big the differences will be? Probably really small, not only because of their nature but mainly because probabilities range which is from 0 to 1. It would be much better if we could only stretch a bit this scale. Actually, yes we can do that using Logit trasnformation. It is really usefull concept and quite simple.
+
+#### Logit transformation
+
+Imagine you have logical variable which takes value 1 if word "quite" appears in a tweet and 0 when it does not. Now you have let say 100 tweets from 100 Brits and 100 Americans. We can easily compute probabiliteis of "quite" appearing in person's tweets. And in terms of comparing these two groups, it would be enough, especially with Kruskal-Walis Sum Rank Test because it would just rank the results, compare two distributions and say if they are distinctive enough. In other words the values does not matter for this test, only order does. However, small range of results in terms of visualisation might be a problem. Therefore, we can spread the scale, here, comes Logit transformation, which is a standard solution for this kind of problems (spreading binary scale not visualisation, for more on this read about Logit regression). We can easily transform probablity into odds - $$\frac{probability\ of\ succes}{probability\ of\ failure}$$ which returns values from 0 to $\infty$. Afterwards, if we take the natural logarithm of odds we will end up with continous variable, which returns negative values when probability of succes is smaller than probability of failure, and positive when success is more probable than failure. Thanks to such transformation we transformed logical variable into contionous which is spread from $-\infty$ to $\infty$, but we did not change the order.
+
+#### NFL
+
+First, we will check if there is a difference between probability of tweets from NFL having positive and negative sentiment. To do so we will just perform Kruskal-Wallis Sum Rank Test. In other words we will check if results for positive and negative categories belong to the same population in terms of probability.
+
+```{r simple_models_NFL_positive_negative}
+## Is there difference positve and negative word appearing in tweet about NFL
+NFL_pos_neg <- NFL_NBA_MLS_NHL_count %>%
+  ## Join total number of tweets from each source to the count data frame
+  left_join(number_of_tweets) %>%
+  ## Compute probability and logit
+  mutate(prob=n/tweets_nr,
+         logit=log(n/tweets_nr)/(1-(n/tweets_nr))) %>%
+  ## Compute sentiment
+  inner_join(sentiment) %>%
+  ## Filter for NFL
+  filter(screen_name=="NFL") %>%
+  ## Filter positive and negtive sentiment only
+  filter(sentiment %in% c("positive","negative"))
+
+
+## For some reason with pipeline this Kruskal-Wallis did not work. Now it returns right results. Therefore I use a different approach of relating to columns of a data frame. Function with() executes second argument within data set which is the first argument. So in the sense it is really similar to pipelines.
+
+## Simple Kruskall-Wallis Sum Rank Test on probabilities
+with(NFL_pos_neg,
+     kruskalTest(prob~as.factor(sentiment)))
+
+## Simple Kruskal-Wallis Sum Rank Test on logit scale 
+with(NFL_pos_neg,
+     kruskalTest(prob~as.factor(sentiment)))
+
+## Visualisation of probabilities
+NFL_pos_neg %>%
+  ## Define axis
+  ggplot(aes(x=sentiment,fill=sentiment,y=prob))+
+  ## Create boxplots, without showing legend
+  geom_boxplot(show.legend = FALSE) +
+  ## Set the theme
+  theme_classic() +
+  ## Name axis
+  labs(x = NULL, y = "Probability",
+    title = "Probablity boxplots of negative and positive sentiment",
+    subtitle = "",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet") +
+  ## Specify names in the legend
+  scale_fill_discrete("")
+
+## Visualisation of probabilities on logit scale
+NFL_pos_neg %>%
+  ## Define axis
+  ggplot(aes(x=sentiment,fill=sentiment,y=logit))+
+  ## Create boxplots, without showing legend
+  geom_boxplot(show.legend = FALSE) +
+  ## Set the theme
+  theme_classic() +
+  ## Name axis
+  labs(x = NULL, y = "Probability (on logit scale)",
+    title = "Probablity boxplots of negative and positive sentiment",
+    subtitle = "",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet") +
+  ## Specify names in the legend
+  scale_fill_discrete("")
+```
+
+#### NBA
+
+Second, we will compute the same for different sentiment for NBA.
+```{r simple_models_NBA_other_sentiment}
+NBA_other_sentiment <- NFL_NBA_MLS_NHL_count %>%
+  ## Join total number of tweets from each source to the count data frame
+  left_join(number_of_tweets) %>%
+  ## Compute probabilites
+  mutate(prob=n/tweets_nr,
+         logit=log(n/tweets_nr)/(1-(n/tweets_nr))) %>%
+  ## Compute sentiment
+  inner_join(sentiment) %>%
+  ## Filter for NFL
+  filter(screen_name=="NBA") %>%
+  ## Filter positive and negtive sentiment only
+  filter(!sentiment %in% c("positive","negative"))
+
+## For some reason with pipeline this Kruskal-Wallis did not work. Now it returns right results. Therefore, I use a different approach of relating to columns of a data frame. Function with() executes second argument within data set which is the first argument. So in the sense it is really similar to pipelines.
+
+## Simple Kruskall-Wallis Sum Rank Test
+with(NBA_other_sentiment,
+     kruskalTest(prob~as.factor(sentiment)))
+## Pairwise comparisons using Dunn's all-pairs test, which should be cool with unequal samples. Now that works too.
+with(NBA_other_sentiment,
+     kwAllPairsDunnTest(NBA_other_sentiment$logit~as.factor(NBA_other_sentiment$sentiment)))
+
+
+## Visualisation
+NBA_other_sentiment %>%
+  ## Define axis
+  ggplot(aes(x=sentiment,fill=sentiment,y=logit)) +
+  ## Create boxplots, without showing legend
+  geom_boxplot(show.legend = FALSE) +
+  ## Set theme
+  theme_classic() +
+  ## Name axis
+  labs(x = NULL, y = "Probability (on logit scale)",
+    title = "Probablity boxplots of sentiment's different categories",
+    subtitle = "",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet") +
+  ## Specify names in the legend, and change default colors to red and blue
+  scale_fill_discrete("")
+```
+
+## Bigrams
+
+Before, we were focused on words (actually stems...) and how to compute sentiment analysis basing on them. This time we are going to shift our area of interest from words to n-grams (combination of n words). In other words we are going to analyse co-occurrence of words and plot them into networks.
+
+## Search/Stream Tweets
+
+We need new data, because we want have more than four distinctive users. Therefore, we are going to search for a new tweets. We are not sure if you are not tired with sport but we are not. Let's talk about Australian Open now. We are preparing this script in the beginning of the second week so we can still believe Federer is going to win his 20th Grand Slam Title #believe.
+
+```{r search_tweets2}
+# ## Search for tweets
+# AO <- search("#AusOpen",
+#              n=18000,
+#              type="recent",
+#              include_rts=FALSE,
+#              lang="en")
+# 
+# save_as_csv(AO,"AO.csv")
+```
+
+## Transform data
+
+We are going to use again our custom function `clean_twitter_data()` to clean the original data frame. Since the processing of the data set takes a while we save the result in csv format.
+
+```{r transforom_data2}
+# ## Read the orginal data set
+# read_twitter_csv("AO.tweets.csv") %>%
+#   ## Clean the data
+#   clean_twitter_data() %>%
+#   ## Delete hashtags we used in the querry
+#   mutate(text=str_replace_all(string=text,
+#                               replacement="",
+#                               pattern="(#AusOpen)")) %>%
+#   ## Save it as csv
+#   write.csv2("AO.csv")
+
+## Transformation to bigrams
+AO_bigrams <- read.csv2("AO.csv") %>%
+  ## Split tweets into bigrams
+  unnest_tokens(output=bigram,
+                input=text,
+                token="ngrams",
+                n=2)
+```
+
+With bigrams we can obviously do the same type of analysis as with single words. It means we can compute tf-idf statistics, probabilities or create simple models. However, as the procedure is really similar we will skip it here (you can try it at home).
+
+## Sentiment analysisc with bigrams
+
+The problem with sentiment analysis as we learnt so far is that it does not take into account negations. We just assigned either category or score to words which repeated in our sentiment dictionary. However, in language it does not work that easy, for example pair of words "not happy" does not necessary load positive sentiment, to say at least. We can easily find the words which load the wrong sentiment.
+
+```{r bigram_sentiment}
+## Load sentiment dictionary
+sentiment <- get_sentiments("nrc")
+## Negation words
+negations <- c("not","never","no","without")
+
+## Load bigrams
+AO_bigrams %>%
+  ## Separate words
+  separate(bigram, c("word1", "word2"), sep = " ") %>%
+  ## Compute sentiment for second word
+  inner_join(sentiment,by=c(word2 = "word")) %>%
+  ## Add "-" before sentiment category when the secon words is proceded by negative word
+  mutate(sentiment=if_else(word1 %in% negations,paste0("-",sentiment),sentiment))
+```
+
+As you can see finding words which load wrong sentiment category is really easy. The harder part is to decide what to do with them. We can either delete them or try to recode them. It is up to you to justify which approach you are going to take. Below we show how to recode sentiment from one category to another and plot the results. The example shows it only with positive negative sentiment because with specific sentiment categories it is even harder to decide which category "never trust" loads.
+
+```{r recode_bigram_sentiment}
+## Load sentiment dictionary
+sentiment <- get_sentiments("nrc")
+## Negation words
+negations <- c("not","never","no","without")
+
+## Load bigrams
+AO_bigrams %>%
+  ## Separate words
+  separate(bigram, c("word1", "word2"), sep = " ") %>%
+  ## Compute sentiment for second word
+  inner_join(sentiment,by=c(word2 = "word")) %>%
+  ## Add "-" before sentiment category when the secon words is proceded by negative word
+  mutate(sentiment=if_else(word1 %in% negations,paste0("-",sentiment),sentiment)) %>%
+  ## Recode -positive and -negative to negative and positive
+  mutate(sentiment= case_when(sentiment=="-positive" ~ "negative",
+                              sentiment=="-negative" ~ "positive",
+                              TRUE ~ sentiment)) %>%
+  ## Filter only positive and negative sentiment
+  filter(sentiment %in% c("positive","negative")) %>%
+  ## Filter only words which are proceed by negations
+  filter(word1 %in% negations) %>%
+  ## Count words
+  count(word2, sentiment, sort = TRUE) %>%
+  ## Group words by sentiment
+  group_by(sentiment) %>%
+  ## Filter ten most frequent words within each sentiment
+  top_n(15) %>%
+  ## Ungroup
+  ungroup() %>%
+  ## Reorder words by frequency
+  mutate(word2 = reorder(word2, n)) %>%
+  ## Plot the chart. Define that words should be on x ax, frequency on y, and sentiment colored
+  ggplot(aes(x=word2, y=n, fill = sentiment)) +
+  ## Get rid of legend
+  geom_col(show.legend = FALSE) +
+  ## Plot one chart for each sentiment type, and let the scale on y ax differ beetwen them
+  facet_wrap(~sentiment, scales = "free_y") +
+  ## Name the labs
+  labs(y = "Contribution to sentiment",
+       x = NULL,
+       title = "Words proceeded by negations contribution to positive and negative sentiment",
+    subtitle = "",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet") +
+  ## Flip axis
+  coord_flip() +
+  ## Define the theme of the chart
+  theme_classic()
+
+```
+
+## Visualising bigrams as network
+
+We can easily find words which connects two words by visualizing bigrams as networks. It means they co-occurred.
+
+```{r bigram_networks}
+## Create a network from bigrams
+AO_bigrams %>%
+  # Separate bigrams into two words
+  separate(bigram,
+           c("word1","word2"),
+           sep=" ") %>%
+  ## Filter stop words in word1
+  filter(!word1 %in% stop_words$word) %>%
+  ## Filter stop words in word2
+  filter(!word2 %in% stop_words$word) %>%
+  #filter(word1 %in% c("federer","nadal","roger","rafael","rafa") | word2 %in% c("roger","rafa","rafael","federer","nadal")) %>%
+  ## Count words
+  count(word1,word2, sort=TRUE) %>%
+  ## Filter words which are not digits and have frequency above 40
+  filter(n>40,
+         !str_detect(word1, "\\d"),
+         !str_detect(word2, "\\d")) %>%
+  ## Convert data frame into graph data frame with edges
+  graph_from_data_frame() %>%
+  ## Plot graph
+  ggraph(layout = "fr") +
+  ## Define edge. Its length, thicknes, and shape
+  geom_edge_link(aes(edge_alpha = n),arrow=arrow(type="open",length=unit(.1,"inches")), show.legend = FALSE) +
+  ## Define node
+  geom_node_point() +
+  ## Define label of node
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+  ## Set the theme
+  theme_void()
+```
+
+With Australian Open data network is quite boring because it returns more or less names of tennis players. It is because we set to filter only nodes with more than 40 appearances in the data set. Changing it to a lower number would be one way of looking for something interesting, however if we do that the graph is too big and hard to read. Therefore, we will pick just part of the big network and have a closer look at connections between The Greatest of All Times His Majesty King Roger Federer and his biggest rival Current Number One Rafael Nadal. They were meant to meet in the final but we all know how it ended up.
+
+```{r bigram_network2}
+## Create a network from bigrams
+AO_bigrams %>%
+  # Separate bigrams into two words
+  separate(bigram,
+           c("word1","word2"),
+           sep=" ") %>%
+  ## Filter stop words in word1
+  filter(!word1 %in% stop_words$word) %>%
+  ## Filter stop words in word2
+  filter(!word2 %in% stop_words$word) %>%
+  ## Select only Roger Federer and Rafael Nadal as nodes
+  filter(word1 %in% c("federer","nadal","roger","rafael","rafa") | word2 %in% c("roger","rafa","rafael","federer","nadal")) %>%
+  ## Count words
+  count(word1,word2, sort=TRUE) %>%
+  ## Filter words which are not digits and have frequency above 2
+  filter(n>2,
+         !str_detect(word1, "\\d"),
+         !str_detect(word2, "\\d")) %>%
+  ## Convert data frame into graph data frame with edges
+  graph_from_data_frame() %>%
+  ## Plot graph
+  ggraph(layout = "fr") +
+  ## Define edge. Its length, thicknes, and shape
+  geom_edge_link(aes(edge_alpha = n),arrow=arrow(type="open",length=unit(.1,"inches")), show.legend = FALSE) +
+  ## Define node
+  geom_node_point() +
+  ## Define label of node
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+  ## Set the theme
+  theme_void()
+```
+
+The network above is somehow more interesting but if you know something about tennis you probably do not learn anything new from it.
+
+## Pairwise correlation
+
+Thanks to last networks we were able to see words which connect Roger Federer and Rafael Nadal, however it lacked a time span. Of course we can easily imagine creating such a network aggregating data by hours or days, but it would be time consuming and also we would have to know something about networks to compare them. Here, we will use pairwise correlation to compute something more or less similar. We will try to answer the question how co-occurence of words connected to Roger Federer and Rafael Nadal changed hour after hour and day after day. Important notion is that computation will take time and generate huge file unless you filter data carefully #beenThere.
+
+We are going to compute *phi coeffcient*, a common measure for binary data. It just tells you how often certain words appear together, and separately. 
+
+$$\phi=\frac{n_{11}n_{00}-n_{10}n_{01}}{\sqrt{n_{1_0}n_{1_1}n_{2_0}n_{2_1}}}$$
+where:
+$n_{11}$ is number of documents where both words are present
+$n_{00}$ is number of documents where neither of words are present
+$n_{10}$ is number of documents where first word is present
+$n_{01}$ is number of documents where second words are present
+$n_{1_1}$ is a sum of $n_{10}$ and $n_{11}$
+$n_{2_1}$ is a sum of $n_{01}$ and $n_{11}$
+$n_{1_0}$ is a sum of $n_{10}$ and $n_{00}$
+$n_{2_0}$ is a sum of $n_{01}$ and $n_{00}$
+
+The formula you see above is just here to show you how to compute it with paper and pencil, however you do not have to think about it too much, because there is a function which will do all the computations for us. Interpretation of this coefficient is quite simple because like every correlation coefficient $\phi \in [-1,1]$, therefore if it is negative the words occur more often separately than together.
+
+```{r pairwise_correlation}
+## Compute pairwise corelations
+AO_bigrams %>%
+  ## Transform from bigrams to words
+  unnest_tokens(input=bigram,
+                output=word) %>%
+  ## Remove digits
+  filter(!str_detect(word, "\\d")) %>%
+  ## Remove stop words
+  filter(!word %in% stop_words$word) %>%
+  ## Filter words we want to check cooccurence
+  filter(word %in% c("federer","nadal","roger","rafael","rafa")) %>%
+  ## Transform date from one format to another
+  mutate(created_at=created_at %>% as.character() %>% ymd_hms(),
+         ## Create variable with day
+         day=created_at %>% as.character() %>% ymd_hms() %>% day,
+         ## Create variable with hour
+         hour=created_at %>% as.character() %>% ymd_hms() %>% hour) %>%
+  ## Compute corelations 
+  pairwise_cor(word,day,hour,sort=FALSE) %>%
+  ## Save the file in quite fast format because files might be huge here
+  write_feather("AO_cor")
+
+## Read the file
+read_feather("AO_cor") %>% 
+  ## Reorder item2 by correlation
+  mutate(item2 = reorder(item2, correlation)) %>%
+  ## Plot the graph with words as y, correlation as x, and collored item1
+  ggplot(aes(item2, correlation, fill=item1)) +
+  ## Set bars to display correlation instead of frequency
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  ## Plot five graphs in each different correlations with different word and make it possible to have different scales
+  facet_wrap(~ item1, scales = "free") +
+  ## Flip axis
+  coord_flip() +
+  ## Set theme
+  theme_classic() +
+  ## Title and axis labels
+  labs(y = NULL,
+       x = NULL,
+       title = "Does words Federer, Nadal, Rafa, Rafael and Roger occur more often together or separetly?",
+    subtitle = "\nData aggregated by tweets",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet") +
+  scale_color_discrete("",labels=c("Rafael Nadal","Roger Federer"))
+```
+
+We can also visualize correlation as networks. The more dark the edge is the more positive correlation is.
+
+```{r pairwise_network}
+read_feather("AO_cor") %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
+  geom_node_point(color = "lightblue", size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE) +
+  theme_void()
+```
+
+## Conclusions
+
+There is much more about text analysis but we would say that in the scripts we went through there are same basics. They were not meant to teach you everything but give some simple tools you can develop yourself. For more on this topics we recommend book by Julia Silge and David Robinson. You can find it for free here
+https://www.tidytextmining.com/sentiment.html
+
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        text-align: justify;
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>

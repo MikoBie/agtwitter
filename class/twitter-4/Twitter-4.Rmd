@@ -1,0 +1,178 @@
+---
+title: "Twitter-4 | Limits"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: true
+---
+
+```{r global_options, include = FALSE}
+# Do not bother with this chunk because it only defines some visual options for other chunks
+knitr::opts_chunk$set(
+    echo = TRUE, warning = FALSE, message = FALSE, include = TRUE, fig.align = "center", fig.height = 3, fig.width = 3
+)
+```
+
+## What will we do in this script?
+
+It is going to be really short script, but might be really important for your projects. We told you before a bit about limits when using `search_tweets()` or other functions. In this script we will show you how to deal with them.
+
+## Load packages
+
+We do not need much packages in this script. Actually, only `rtweet` would be enough but since we tend to use pipelines a lot we also need some data transformation packages.
+
+```{r load_packages}
+library(rtweet) # for downloading data from Twitter
+library(tidyverse) # for data transfomration
+library(dplyr) # for data transforamtion
+library(magrittr) # for pipelines
+library(feather) # fast data format
+```
+
+## retryonratelimit
+
+During first or second class, I told you that some functions have logical argument `retryonratelimit`. If it is set to `TRUE` the function will wait 15 minutes when it reaches limit and automatically continue downloading until gets enough results (tweets, users_id and so on). So actually there is nothing you need to think about apart from setting the argument to `TRUE`. Examples are:
+
+* `search_tweets`
+* `get_followers`
+* `get_friends`
+
+Actually, I think they are the only ones to have this argument. Just check in documentation if the function you want to use has the argument `retryonratelimit`.
+
+## Rate Limit
+
+With functions in the previous section it is fairly easy to go around the rate limits, however what to do with other functions which do not have `retryonratelimit` argument and return error like `Rate limit exceeded - 88Error` when you are using them beyond the limit? On one hand the answer is straightforward because you just need to set `R` to wait fifteen minutes every time it reaches the limit, but on the other hand figuring out the limits is not that easy. Let's start with a short note about limits. In general there are two kinds of them: within connection limit and limit of connections. To make it easier think about it like taking sweets from pack of snacks. You can not take more than a few with single grasp and there is number of full hands you can take before everyone starts judging you. With Twitter it is exactly the same, apart from the fact that sweets are sweeter than tweets (you saw it coming).
+
+Before, I did not tell you anything about number of connections you can make with Twitter API, because it was not necessary. We did not need to get a lot of tweets or anything. Now some of you might find it useful for projects. However, first I will show you functions which tells you everything you need to know about limits. `rate_limits` returns name of the query, limit it has, remaining queries within limit, remaining time to reset, what time the limit will be reseted, name of the app.
+
+```{r rate_limit}
+## See all the availble limits
+rate_limit() %>% View
+
+## However, most of them we do not really need. We want to see limits which we really use, therefore we are interested only in limits which has difference between limit and remaining
+rate_limit() %>%
+  ## Filter only used limits
+  filter(limit != remaining) %>%
+  ## View the results
+  View
+```
+
+As you probably realized it decreases number of connections whenever you use `rate_limit`. It is important to know that because it means that you can not tell R that it needs to check if you reached the limit. You need to know the limit in advance and after certain number of downloads wait 15 minutes.
+
+## Example
+
+We are not going to show you how to go around every single limit. Instead we are going to show you which steps you need to take to first figure it out and then go around it.
+
+Imagine you want to get 100 thousands of FC Barcelona followers, and check how many of them set their account in Catalan, and in Spanish.
+
+```{r fc_barcelona}
+## Get followers. It takes more than 15 minutes because we want to get more than 75,000
+FCB_followers <- get_followers("FCBarcelona",
+                               retryonratelimit = TRUE,
+                               n=100000)
+## Before I start I need to create an object in which I will save my results. It might be empty.
+FCB_followers_all <- NULL
+## The limit for lookup_users is 90,000 so we use lookup_users twice with 15 minutes break
+## Loop for repeats what is between curly brackets until it reaches limit of i, in that case it is two.
+for (i in c(1:2)) {
+  ## Load list of followers
+  FCB_followers_temp <- read_feather("FCB_followers") %>%
+    ## It is crucial because I specify which part of the data set to check as a function of i. Take a moment and compute what I am doing
+    slice((1+(1-i)*90000):(90000+(1-i)*90000)) %>%
+    ## Simple lookup users
+    lookup_users()
+  ## Bind rows function bind rows.
+  FCB_followers_all <- bind_rows(FCB_followers_all,FCB_followers_temp)
+  ## It prints to console the value of i, so you know hom much data you gathered
+  print(i)
+  print("Śpię. Nie przeszkadzać!")
+  rate_limit() %>%
+  ## Filter only used limits
+  filter(limit != remaining) %>%
+  ## View the results
+  View
+  ## Set R to sleep for 6 minutes because gathering looking up takes some time
+  Sys.sleep(60*6)
+}
+
+## The problem with getting timelines is that. We can dowload up to 180 timelines within 15 minutes. Getting 100,000 will take around 134 hours. The following code should do.
+
+## Again I need to create an object to save my results
+FCB_timeline_all <- NULL
+## I will use j as index to know how many timelines I already downloaded
+j <- 0
+## Again loop for. I want i to be from vector of screen names excluding protected accounts because anyway I can't get tweets from them.
+for (i in FCB_followers_all %>% filter(protected!=TRUE) %>% slice(1:200) %$% screen_name) {
+  ## Get timeline
+  FCB_timeline <- get_timeline(i, n = 100)
+  ## Save first timeline to FCB_timeline_all
+  FCB_timeline_all <- bind_rows(FCB_timeline_all,FCB_timeline)
+  ## Show how many timelines we got.
+  print(j <- j+1)
+  ## If j divided by 180 and j modulo 180 are equal the same number it means that j is multiple of 180, so R should take a nap because it reached the limit of connections and timelines downloads.
+  if (j / 179 == j %/% 179) {
+    ## Print information what R is doing
+    print("Śpię. Nie przeszkadzać")
+    ## Tell R to sleep for 150 minutes
+    Sys.sleep(60*15)
+  }
+}
+```
+
+What if I know want to know if FC Barcelona supporters follow also Real Madrid on Twtiiter. I just need to use function `lookup_friendship`. However, again it takes some time.
+
+```{r real_madrid}
+## Create an object to save results
+FCB_following_RMCF_all <- NULL
+## Create an index
+j <- 0
+## Again loop for. I want i to be from vector of screen names excluding protected accounts because anyway I can't get tweets from them.
+for (i in FCB_followers_all %>% filter(protected!=TRUE) %$% screen_name){
+  ## Get friendship
+  FCB_following_RMCF <- lookup_friendships(i, "realmadrid")
+  ## Save timeline to FCB_timeline_all
+  FCB_following_RMCF_all <- bind_rows(FCB_following_RMCF_all,FCB_following_RMCF)
+  ## Print index
+  print(j <- j+1)
+  ## If j divided by 179 and j modulo 179 are equal the same number it means that j is multiple of 180, so R should take a nap because it reached the limit of connections and timelines downloads.
+  if (j/179 == j%/%179) {
+    ## Print information what R is doing
+    print("Śpię. Nie przeszkadzać!")
+    ## Tell R to sleep for 15 minutes
+    Sys.sleep(60*15)
+  }
+}
+```
+
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        text-align: justify;
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>

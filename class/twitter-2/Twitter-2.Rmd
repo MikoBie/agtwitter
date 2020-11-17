@@ -1,0 +1,382 @@
+---
+title: "Twitter-2 | Intrudaction to text analysis"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: true
+---
+```{r global_options, include = FALSE}
+# Do not bother with this chunk because it only defines some visual options for other chunks
+knitr::opts_chunk$set(
+    echo = TRUE, warning = FALSE, message = FALSE, include = TRUE, fig.align = "center", fig.height = 3, fig.width = 3
+)
+```
+## What will we do in this script?
+So far we were analyzing, or maybe it would be more accurate to say were playing with data we got from Twitter. So more or less it was about descriptive statistics, probably even that it is too much to say. In this script we will, hopefully, learn how to do some basic text analysis.  
+To learn more about text analyzing we recommend book by Julia Silge and David Robinson. You can find it for free here
+https://www.tidytextmining.com/sentiment.html
+
+```{r load_packages}
+## Install packages for text analysis
+packages <- c("tidytext","wordcloud","DataCombine","reshape2")
+install.packages(packages)
+
+## Load packages needed in this script
+library(rtweet) # for downloading data from Twitter
+library(dplyr) # for data transformation
+library(magrittr) # for data transformation
+library(tidytext) # for text analysing
+library(stringr) # for dealing with strings
+library(wordcloud) # for basic text visualisation
+library(ggplot2) # for graphics
+library(DataCombine) # for data transformation
+library(reshape2) # for data transformation
+```
+## Stream/Search Tweets
+
+In the previous script we learnt how to stream and search tweets. Here, we want to not only get tweets but also save them to working directory, so we can later use the same data set. However, before we start doing so, you need to know something about text mining/text analyzing. The easiest language to analyse is English, if it is not your native language you probably by now know why. First of all, Twitter is really popular in English speaking countries. Second, grammar and syntax are quite easy to analyse, unlike for example in Polish (check some basic Polish grammar rules on https://en.wikipedia.org/wiki/Polish_grammar). Third, probably because of the previous two points most of the packages for text analysis are written for English. 
+
+**We are going to search tweets not stream them because there is no time for that.**
+
+```{r search_tweets}
+## Search tweets about the game between Manchester City and Burnley FC in third round of FA Cup. It is about football (soccer).
+ FACup <- search_tweets(q="#cityvburnley #FACup",
+                        n=18000,
+                        include_rts = FALSE,
+                        lang="en")
+## Save collection of tweets as csv in working directory. It takes as arguments name of the object and name of the file we want to create.
+ write_as_csv(x=FACup,
+              file_name="FACup.csv")
+```
+
+So now you have your data set saved on your desktop in the format you can easily access not only through R but also SPSS or Excel (Numbers on Mac). In general csv format or any other text format is easy to handle on any device (even smartphones) and also it makes the data set lighter. The latter is especially important in terms of big Twitter data.
+
+## Transform data
+
+One of the longest and most frustrating phases of dealing with data, in general, is transforming it the way you want it to look like. In the two books we recommended there is tidy approach to do so described. At first glance it might look a bit confusing but there is no better way to learn it than by trial and error. Below we use some functions from packages `magritrrr` and `dplyr` you probably do not know but do not worry, it will come with experience. Before we start, however, we would like to explain what this symbol `%>%` you probably noticed in the previous scrip stands for. It is called "pipe" and basically takes the output of preceding function to feed the other one.  
+Long story short. What we want to achieve with the script below is to have word from each tweet as a record. To do so we will face a few problems specific for Twitter.  
+
+  1) Some tweets contain links and we want to get rid of them because in this kind of analysis they are useless.
+  2) Actually, we do not need words as records but stems (stem is part of the word that is common to all its inflected variants). Fortunately, for English there is a good algorithm processing words to stems (Porter's algorithm) and of course it is implemented in R.
+  3) Emojis 🙈🙉🙊. People, obviously, put emojis in tweets. It is a problem in terms of analysing text because from Twitter we would get codes like this instead of monkeys:
+  
+  * `\U0001f648` -	see-no-evil monkey
+  * `\U0001f649` - hear-no-evil monkey
+  * `\U0001f64a` - speak-no-evil monkey  
+  
+    Therefore, we need to make a choice and somehow justify if we want to delete them or recode them. For now we will delete most of them because the way we wanted to recode them does not work properly. We still need to figure it out, and when we do, we will let you know.
+
+```{r transform_data}
+## Read emojis to the environment. There is build in data frame with emojis in R, so we only need to load it into our session.
+data("emojis")
+
+## You can see there is 2623 emojis, they should be more or less up-to-date because this data comes from http://unicode.org/emoji/charts/full-emoji-list.html
+View(emojis)
+
+## Read stop_wrods to the environment. There is build in data frame with English stop_words in R, so we only need to load it into our session.
+data("stop_words")
+
+## You can see there is 1149 stop words. They come from three different lexicons:
+## onix - http://www.lextek.com/manuals/onix/stopwords1.html
+## SMART - http://www.jmlr.org/papers/volume5/lewis04a/lewis04a.pdf 
+## snowball - http://snowball.tartarus.org/algorithms/english/stop.txt
+View(stop_words)
+
+## Transform coding of emojis from one format to another. Believe us it is needed.
+emojis <- emojis %>%
+  mutate(code=iconv(code,from="latin1",to="ascii",sub="byte")) %>%
+  mutate(description=paste0(" ",description," ")) 
+  
+
+## Read csv data set from working directory to R
+FACup <- read_twitter_csv("FACup.csv") %>%
+  ## Select columns, we are going to use
+  select(text,created_at,user_id,status_id,favorite_count,retweet_count,hashtags) %>%
+  ## Transform coding from one format to another #seeingIsBelieving
+  mutate(text=iconv(text,from="latin1",to="ascii",sub="byte")) %>%
+  ## Crucial transformation, which kept me awake one fun night. Transform dataset from one format to another. Without it the next function doesn't work
+  as.data.frame() %>%
+  ## Replace emojis with their descriptions. It takes a while and might return some warnings, but you can igonre them.
+  FindReplace(Var = "text",
+              replaceData = emojis,
+              from = "code", to = "description",
+              exact = FALSE) %>%
+  ## Getting rid of emojis which we were not able to match with description
+  mutate(text=str_replace_all(string=text,
+                              replacement="",
+                              pattern="(<[:alnum:]{2}>)")) %>%
+  ## Delete hashtags we used in the querry
+  mutate(text=str_replace_all(string=text,
+                              replacement="",
+                              pattern="(#cityvburnley)|(#FACup)")) %>%
+  ## In each row in text column look for phrase containing link and replace it with nothing
+  mutate(text=str_replace_all(string=text,
+                              pattern="http[[:alnum:][:punct:]]*",
+                              replacement = "")) %>%
+  ## split words into stems
+  unnest_tokens(output=word,
+                input=text) %>%
+  ## Delete rows with stop words
+  anti_join(stop_words) 
+```
+
+## Word Clouds
+
+The easiest way to display text data is by creating a word cloud. The size of each word is function of frequency of this word in the data set. In other words the bigger word is the more often the word appeared in tweets.
+
+```{r word_cloud, fig.width=3,fig.height=3,fig.align="center",echo=TRUE}
+FACup %>%
+  ## Add up words
+  count(word) %$%
+  ## Draw a word cloud
+  wordcloud(word,n)
+```
+
+## Computing Sentiment of tweets
+
+The easiest approach to compute emotional value of tweets is by using sentiment lexicons. They are just a table with thousand of words in one column and in another there is emotional value of each word. In `tidytext` package we have four dictionaries to compute sentiment build in.
+
+* `AFINN` - from Finn Arup Nielsen. It assigns words with a score between -5 and 5, where obviously negative numbers indicate negativeness. http://www2.imm.dtu.dk/pubdb/views/publication_details.php?id=6010
+* `bing` - from Bing Liu and collaborators. It categories words in binary fashion into positive and negative categories. It just says if the word is positive or negative. https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html
+* `nrc` - from Saif Mohammad and Peter Turney. It categories words in binary fashion into positive, negative, anger, anticipation, disgust, fear, joy, sadness, surprise, and trust dimensions. In other words it says if the word is positive or negative and into which emotions falls. http://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm
+* `loughran` - from Bill McDonald and Tim Loughran. It categories words in binary fashion into constraining, litigious, negative, positive, superfluous and uncertainty dimensions. https://www3.nd.edu/~mcdonald/Word_Lists.html
+
+*Important note:* First three lexicons were built on either Mechanical Turk or Twitter, so using them with Tweets should be ok, but the last one is based on financial texts so it might not suit here well.
+
+Since, we already have our tweets in format of stems it should be really easy to match them with words from the lexicons. We have already used function `anti_join()`, which allowed us to delete specific words from tweets. Now we are going to use function which would do the opposite. It means it will match words two data sets and add a column with sentiment.
+```{r sentiment}
+## Getting nrc lexicon. With other lexicons it would work more or less the same, the only thing you need to remeber is that AFINN the sentiment score is on scale from -5 to 5.
+Sentiment <- get_sentiments("nrc")
+
+## Adding column with sentiment to the orginal dataset. It deletes rows which do not match
+FACup_sentiment <- FACup %>%
+  inner_join(Sentiment)
+
+## How sentiment changed over time
+FACup_sentiment %>%
+  ## Group by types of sentiment. Only positive and negative sentiment
+  filter(sentiment %in% c("positive","negative")) %>%
+  ## Agrregate time using one hour interval
+  mutate(created_at=as.POSIXlt(created_at)$hour) %>%
+  ## Group by sentiment and time tweet was created
+  group_by(sentiment,created_at) %>%
+  ## Plot bar chart. Define what should be on x axis and that sentiment should be colored
+  ggplot(aes(x=created_at,fill=sentiment)) +
+  ## Setting theme of the chart
+  theme_classic() +
+  ## Say that we are interested in proportions not counts
+  geom_bar(position="fill") +
+  ## Name the labs
+  labs(x = NULL, y = NULL,
+    title = "Proportion of sentiment on #FACup and #cityvburnley tweets from past 5 days",
+    subtitle = "Tweets counts aggregated using hour intervals",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet") +
+  ## Specify names in the legend
+  scale_fill_discrete("")
+  
+## How sentiment (sepcific emotions) changed over time
+FACup %>%
+  ## Join two data sets and delete rows which do not match
+  inner_join(Sentiment) %>%
+  ## Group by types of sentiment. Only specific emotions without positive and negative categories
+  filter(!sentiment %in% c("positive","negative")) %>%
+  ## Group by sentiment and time tweet was created
+  mutate(created_at=as.POSIXlt(created_at)$hour) %>%
+  ## Group by sentiment and time tweet was created
+  group_by(sentiment,created_at) %>%
+  ## Plot bar chart. Define what should be on x axis and that sentiment should be colored
+  ggplot(aes(x=created_at,fill=sentiment)) +
+  ## Setting theme of the chart
+  theme_classic() +
+  ## Say that we are interested in proportions not counts
+  geom_bar(position="fill") +
+  ## Name the labs
+  labs(x = NULL, y = NULL,
+    title = "Proportion of sentiment on #FACup and #cityvburnley tweets",
+    subtitle = "Tweets counts aggregated using hour intervals",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet") +
+  ## Specify names in the legend
+  scale_fill_discrete("")
+```  
+## Which words loaded the dimmensions the most
+
+When we have the data in the format of word as a record and with sentiment we can easily (relatively) check which words loads each dimension. In other words what are the words that contributes the most to each sentiment. Below we will present two different methods to visualize that.
+
+### Bar charts
+
+```{r dimension_loadings}
+## Use the dataset with sentiment computed
+FACup_sentiment %>%
+  ## Add up words groupped by word and sentiment. Sort the results
+  count(word, sentiment, sort = TRUE) %>%
+  ## Group words by sentiment
+  group_by(sentiment) %>%
+  ## Filter ten most frequent words within each sentiment
+  top_n(10) %>%
+  ## Ungroup
+  ungroup() %>%
+  ## Reorder words by frequency
+  mutate(word = reorder(word, n)) %>%
+  ## Plot the chart. Define that words should be on x ax, frequency on y, and sentiment colored
+  ggplot(aes(x=word, y=n, fill = sentiment)) +
+  ## Get rid of legend
+  geom_col(show.legend = FALSE) +
+  ## Plot one chart for each sentiment type, and let the scale on y ax differ beetwen them
+  facet_wrap(~sentiment, scales = "free_y") +
+  ## Name the labs
+  labs(y = "Contribution to sentiment",
+       x = NULL) +
+  ## Flip axis
+  coord_flip() +
+  ## Define the theme of the chart
+  theme_classic()
+```
+Charts like the one above usually tell us a lot. For example because we know the data come from tweets about football (sorry, soccer), we can easily assume that "shot" and "strike" not necessary have negative connotation in this example. We can be even more sure that "sterling" relates to name of the football player not adjective (although in this campaign his name almost means excellent and valuable for sure). Therefore, we might need to remove all three from our analysis. 
+
+```{r remove_sterling}
+## List of words to be removed
+word <- c("sterling","shot","strike")
+
+## Remove sterling, shot and strike (Pep Guardiola does not like it)
+FACup_sentiment <- FACup_sentiment %>%
+  anti_join(data_frame(word))
+
+## If we run the code again sterling should disappear
+FACup_sentiment %>%
+  ## Add up words groupped by word and sentiment. Sort the results
+  count(word, sentiment, sort = TRUE) %>%
+  ## Group words by sentiment
+  group_by(sentiment) %>%
+  ## Filter ten most frequent words within each sentiment
+  top_n(5) %>%
+  ## Ungroup
+  ungroup() %>%
+  ## Reorder words by frequency
+  mutate(word = reorder(word, n)) %>%
+  ## Plot the chart. Define that words should be on x ax, frequency on y, and sentiment colored
+  ggplot(aes(x=word, y=n, fill = sentiment)) +
+  ## Get rid of legend
+  geom_col(show.legend = FALSE) +
+  ## Plot one chart for each sentiment type, and let the scale on y ax differ beetwen them
+  facet_wrap(~sentiment, scales = "free_y") +
+  ## Name the labs
+  labs(y = "Contribution to sentiment",
+       x = NULL) +
+  ## Flip axis
+  coord_flip() +
+  ## Define the theme of the chart
+  theme_classic()
+```
+
+### Word Clouds 2
+
+Another approach to more or less the same thing is to plot a comparison word cloud. As the name suggest it, thanks to this chart we will be able to compare frequencies of categories.
+
+```{r word_cloud2, fig.width=3.5,fig.height=3.5,fig.align="center",echo=TRUE}
+## Use the dataset without sterling, strike and shot
+FACup_sentiment %>%
+  ## Filter only positive and negative sentiment because otherwise the plot is unreadable
+  filter(sentiment %in% c("positive","negative")) %>%
+  ## Add up words groupped by word and sentiment. Sort the results
+  count(word, sentiment, sort = TRUE) %>%
+  ## Group words by sentiment type
+  group_by(sentiment) %>%
+  ## Filter ten most frequent words within each sentiment
+  top_n(40) %>%
+  ## Ungroup
+  ungroup() %>%
+  ## Transform the data into different format.
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  ## Plot the cloud. 
+  comparison.cloud(color=c("red","green"),
+                   max.words = 80)
+```
+In general word clouds look cool but they are less informative than bar charts. Therefore, you might want to show word clouds but make decision basing on bar charts.
+
+## Sky is the limit
+
+There is plenty of things we can do when we have sentiment computed. The ones listed above are just examples. You can model topics and model probability of words in tweets of specific users. However, it is just introduction so we do not want to inundate you with information. Therefore, the last thing we will show you is how to aggregate sentiment by tweets and how to save it so you can open it in SPSS. 
+
+```{r aggregate_sentiment_by_tweets}
+## First we will use different lexicon because with AFINN we can easily add up sentiment by words
+Sentiment <- get_sentiments("afinn")
+
+## Aggregate words back to tweets with computed sentiment.
+FACup %>%
+  ## Compute sentiment
+  inner_join(Sentiment) %>%
+  ## Group by tweet
+  group_by(status_id) %>%
+  ## Return data frame with sentiment, created_at, user_id, favourite_count, retweet_count, and hashtags
+  summarise(sentiment=sum(score),
+            created_at=unique(created_at),
+            user_id=unique(user_id),
+            favorite_count=unique(favorite_count),
+            retweet_count=unique(retweet_count),
+            hashtags=unique(hashtags))
+
+## For lexicon like NRC, aggregating sentiment by tweets would look like this
+sentiment <- get_sentiments("nrc")
+
+# Nu#mber of not stop words in tweets
+wordcounts <- FACup %>%
+  ## Group by unique tweet
+  group_by(status_id) %>%
+  ## Compute number of words in a tweet
+  summarize(words = n())
+
+## Aggregate 
+FACup %>%
+  ## Compute sentiment
+  inner_join(sentiment) %>%
+  ## Group by tweet and sentiment category
+  group_by(status_id,sentiment) %>%
+  ## Compute words loading specific category of sentiment within tweet
+  summarize(sentiment_words = n()) %>%
+  ## Add word count of all words from the tweet
+  left_join(wordcounts) %>%
+  ## Compute ratio of each category fos entiment to all words in a tweet
+  mutate(ratio = sentiment_words/words) %>%
+  ## Add columns like created_at, favorite_count, retweet_count, and hashtags
+  left_join(FACup %>% select(-word)) %>%
+  ## Remove reating words
+  unique()
+```
+If you are done "playing" with **R** and want to analyse your data in old good SPSS, just add after last parenthesis `%>% write.csv("FACup.csv")` and csv file ready to load into SPSS will appear in your your folder.
+
+## Conclusions
+
+When analyzing data you need to remember that you are the one who makes the decisions. Computer or analytic methods are only tools which help you to look at your data, they will not make decision for you.
+
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        text-align: justify;
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>

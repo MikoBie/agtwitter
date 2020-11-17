@@ -1,0 +1,134 @@
+---
+title: "Twitter-2 | Plot erratum"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: true
+---
+## Load packages
+
+You should start with loading and installing packages in this script. There is a new package called `lubidate` which needs to be installed.
+
+```{r load_packages}
+## Install packages for text analysis
+packages <- c("lubridate")
+install.packages(packages)
+
+## Load packages needed in this script
+library(rtweet) # for downloading data from Twitter
+library(dplyr) # for data transformation
+library(magrittr) # for data transformation
+library(tidytext) # for text analysing
+library(stringr) # for dealing with strings
+library(wordcloud) # for basic text visualisation
+library(ggplot2) # for graphics
+library(DataCombine) # for data transformation
+library(reshape2) # for data transformation
+library(lubridate) # for dates manipulation
+```
+
+
+## Erratum
+
+You need to create first object `FACup_sentiment` to be able to run the code below. In other words you need to execute chunk `transform_data` from `Twitter-2.Rmd`, and lines from 149 to 153 from the same script. To make up for the mistakes I made in original `Twitter-2.Rmd` I added match events to the visualization of the FACup game. If something is not clear let me know either on Wednesday or any other day you see me.
+
+```{r erratum}
+## Create data frame with match events
+## In the first column there is time and in the second what happened.
+match_events <- data_frame(time = c("18-01-06 15:00:00",
+                                    "18-01-06 15:25:00",
+                                    "18-01-06 15:45:00",
+                                    "18-01-06 16:00:00",
+                                    "18-01-06 16:11:00",
+                                    "18-01-06 16:13:00",
+                                    "18-01-06 16:26:00",
+                                    "18-01-06 16:37:00",
+                                    "18-01-06 16:45:00") %>%
+                             ## This is really important transformation. It transform vector above into date vector.
+                             as_datetime(tz = NULL),
+                           ## Second column
+                           event = c("Kick off",
+                                     "Goal Burnley",
+                                     "HT",
+                                     "Start of the Second Half",
+                                     "GOAL City",
+                                     "GOAL City",
+                                     "GOAL City",
+                                     "GOAL City",
+                                     "FT"))
+                           
+
+FACup_sentiment %>%
+  ## Group by types of sentiment. Only positive and negative sentiment
+  filter(sentiment %in% c("positive","negative")) %>%
+  ## Create new variables
+         ## Extract day from the date
+  mutate(day=created_at %>% day,
+         ## Extract hour from the date
+         hour=created_at %>% hour,
+         ## Extract minute form the date
+         minute=created_at %>% minute) %>%
+  ## Filter only tweets from the sixth
+  filter(day == 6) %>%
+  ## Filter only tweets from around the game
+  filter(hour >12, hour < 18) %>%
+  ## Create new variable time, which aggregates time by 15 minutes interval
+                        ## If minute less than 15 minutes set minutes equals 0
+  mutate(time=case_when(minute < 15 ~ paste0("18-01-06 ",hour,":00:00"),
+                        ## If minute less than 30 minutes set minutes equals 15
+                        minute < 30 ~ paste0("18-01-06 ",hour,":15:00"),
+                        ## If minute less than 45 minutes set minutes equals 30
+                        minute < 45 ~ paste0("18-01-06 ",hour,":30:00"),
+                        ## If minute less than 60 minutes set minutes equals 45
+                        minute < 60 ~ paste0("18-01-06 ",hour,":45:00")),
+         ## Convert variable time to date format. Super important
+         time=time %>% as_datetime(tz=NULL)) %>%
+  ## Plot bar chart. This time I am not defining axis here, because I want to use two different data sets match_events and FACup_sentiment
+  ggplot() +
+  ## Setting theme of the chart
+  theme_classic() +
+  ## Define axis, and say that we are interested with proportions not counts
+  geom_bar(aes(x=time,fill=sentiment),position="fill") +
+  ## Name the labs
+  labs(x = NULL, y = NULL,
+    title = "Proportion of sentiment on #FACup and #cityvburnley between 12:00 and 18:00 on a matchday",
+    subtitle = "Tweets counts aggregated using 15 minutes intervals",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet") +
+  ## Specify that we do not want to have name of the legend but just types of sentiment
+  scale_fill_discrete("") +
+  ## Add match events to the plot, define where and what. They are not beautiful but still. 
+  geom_text(data=match_events,aes(x=time, y=-0.2),label=match_events %$% event, angle = 90, nudge_y = .5)
+```
+
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        text-align: justify;
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>

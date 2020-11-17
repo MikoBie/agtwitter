@@ -1,0 +1,122 @@
+---
+title: "Homework-2 | Computing sentiment"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: true
+---
+
+```{r global_options, include = FALSE}
+# Do not bother with this chunk because it only defines some visual options for other chunks
+knitr::opts_chunk$set(
+    echo = TRUE, warning = FALSE, message = FALSE, include = TRUE, fig.align = "center", fig.height = 3, fig.width = 3
+)
+```
+
+```{r load_packages}
+## Load packages needed in this script
+library(rtweet) # for downloading data from Twitter
+library(dplyr) # for data transformation
+library(magrittr) # for data transformation
+library(tidytext) # for text analysing
+library(stringr) # for dealing with strings
+library(wordcloud) # for basic text visualisation
+library(ggplot2) # for graphics
+library(DataCombine) # for data transformation
+library(reshape2) # for data transformation
+```
+## How to submit the Homework
+
+Please submit two files `Rmd` file with your homework and your original data set in `csv` format.
+
+## General Hint
+
+One of the most important things when you are coding is to name variables or files with proper names. Try to avoid using single letters or acronyms because they are confusing and you will forget what they stand for the moment you check your Facebook. If there is an error with loading a file double or triple check if it really is called like you think it is.
+
+## Transform data
+
+Take the data set from Homework 1 and perform following operation on it.
+
+* Select columns: text, created_at, screen_name, source, status_id, favorite_count, retweet_count, hashtags
+* Translate emojis, and delete the untranslatable ones
+* Delete words used in the query
+* Get rid of links from tweets
+* Split words into stems
+* Delete rows with stop words
+
+*Hint:* Read carefully what you are supposed to do and `Twitter-1.Rmd`
+
+```{r transfomr_data}
+Homework2_1 <- read_twitter_csv("Homework1_1_2.tweets.csv") %>%
+  NULL## replace NULL with solution, otherwise it returns error.
+  
+## Save solution
+write.csv2(Homework2_1,"Homework2_1")
+```
+
+## Compute sentiment
+
+Use bing sentiment dictionary and compute sentiment for your NBA game data set.
+
+*Note:* Use the transformed data however do not load the saved file but use the object which is in environment. In other words you **can not** close RStudio between doing task one and task two from this Homework otherwise a unicorn dies...
+
+```{r compute_sentiment}
+Homework2_2 <- Homework2_1 %>%
+  NULL ## replace NULL with solution, otherwise it returns error.
+
+## Save solution
+write.csv2(Homework2_2,"Homework2_2.csv")
+```
+
+## Plot 
+
+Plot how sentiment changed over time aggregating tweets using one hour interval. Explain what might have influenced overall sentiment in your data set.
+
+*Challenging Challenge:* See which words load sentiment categories and delete the ones which load sentiment but should not. Justify why you delete each word.
+
+```{r plot}
+
+```
+
+## It is a lot but
+
+Aggregate sentiment by tweets.
+
+```{r agrregate}
+Homework2_3 <- NULL ## replace NULL with solution, otherwise it returns error.
+
+## Save solution
+write.csv2(Homework2_3,"Homework2_3.csv")
+```
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        text-align: justify;
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>

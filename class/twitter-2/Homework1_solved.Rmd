@@ -1,0 +1,163 @@
+---
+title: "Homework-1 | Basic functions"
+author: "Szymon Talaga, Mikołaj Biesaga, ISS UW"
+output:
+  html_notebook:
+    toc: true
+---
+
+```{r global_options, include = FALSE}
+# Do not bother with this chunk because it only defines some visual options for other chunks
+knitr::opts_chunk$set(
+    echo = TRUE, warning = FALSE, message = FALSE, include = TRUE, fig.align = "center", fig.height = 3, fig.width = 3
+)
+```
+
+```{r load_packages}
+## Load packages needed in this script
+library(rtweet) # for downloading data from Twitter
+library(dplyr) # for data transformation
+library(magrittr) # for data transformation
+library(tidytext) # for text analysing
+library(stringr) # for dealing with strings
+library(wordcloud) # for basic text visualisation
+library(ggplot2) # for graphics
+library(DataCombine) # for data transformation
+library(reshape2) # for data transformation
+```
+
+## Search tweets
+
+Use `search_tweets()` function to look for at least 1000 tweets about NBA game of your choice. Limit them only to the state in which the game was played. Include retweets.
+
+*Hint:* Remember about `lookup_coords()` function.
+
+### Solution
+One of us (guess for who for extraa credit, just kidding) is a big sports aficionado, so only he could have come up with sports examples. Anyway for him the task was straightforward because he did not have to look for hashtags, he already knew them. For the rest of us humans it might have been not that easy.
+
+#### \#Hashtags
+
+When you want to filter tweets by hashtags you should start with finding the ones you want to look after. However, it is easier to say than to do because on Twitter they emerge spontaneously (in theory) and somehow get viral more or less like cute cats... Anyway there are three main ways to get hashtags
+
+1. Using function `get_trends()` to find currently trending hashtags.
+
+2. Looking for hashtags on news websites or even cable TV news channels. They put them either in the text or display on your TV screens.
+
+3. Finding hashtags yourself on Twitter by looking what people you follow tweet or people you think are influential tweet.
+
+#### How does this three ways of getting hashtags apply to your task?
+
+There are two main approaches you could have used in this task.
+
+1. Go to Twitter account of sports news websites which tweet about NBA (for example @FoxSportOH) and look in their timelines in search of tweets about game of your choice. Usually, also teams' Twitter accounts put hashtags regarding current game, for example for Miami Heat against Dallas Mavericks it is #MIAvsDAL or Cleveland Cavaliers against Minnesota Timberwolves - #CavsWolves, however, it does not always work.
+
+2. Go to Twitter to team's of your choice account and look for their hashtag (or @NBAonTNT). Appropriate hashtag should be written in team's profile description, for example Golden State Warriors have #DubNation and New York Knicks very creative #NewYorkForever. If you read documentation on `search_tweets()` or `stream_tweets()` functions there is written there that you can look for tweets containing multiple words or hashtags at the same time. If you put `q="#DubNation #NewYorkForever" you should get tweets containing both hashtags therefore most likely about the game which happened on January 23. However, it might happen that it still does not return sufficient number of tweets, in that case you should try with teams screen names.
+
+
+```{r search_tweets}
+
+Homework1_1 <- search_tweets(q="#DubNation #NewYorkForever",
+                             n=1000,)
+                             geocode=lookup_coords("California"))
+
+Homework1_1_2 <- search_tweets(q="@warriors @nyknicks",
+                             n=1000,)
+                             geocode=lookup_coords("California"))
+
+## Save the data set
+Homework1_1 %>%
+  save_as_csv("Homework1_1.csv")
+Homework1_1_2 %>%
+  save_as_csv("Homework1_1_2.csv")
+```
+
+## Questions.
+
+What can you tell us without looking into the data set about people who tweeted those tweets?
+
+Was there easier way to get tweets from the same population of people?
+
+## Plot
+
+Plot frequency of original tweets and retweets. Aggregate tweets by 45 minutes.
+
+### Solution
+The only thing which had to be changed in the code comparing to the code from `Twitter-1.Rmd` was time interval, name of the data set and titles #easyPeasyLemonSqueezy
+
+```{r plot}
+Homework1_1_2 %>%
+  group_by(is_retweet) %>%
+  ts_plot("45 minutes") +
+  theme_minimal() +
+  theme_classic() +
+  scale_color_discrete("",labels=c("Original","Retweet")) +
+  labs(
+    x = NULL, y = NULL,
+    title = "Frequency of @warriors and @nyknicks tweets from past 5 days",
+    subtitle = "Tweet counts aggregated using 45 minutes interval",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+  )
+
+```
+
+## Get timeline
+
+Download home timeline of Serena Williams.
+
+*Hint:* User timeline consists of tweets tweetted only by a given user, while in home timeline are tweets posted by accounts followed by a user.
+
+### Solution
+The solution was really straightforward. The only thing you had to do was to read documentation on `get_timeline()` function and find Serena Williams twitter account. We assumed that you know how to recognize official profile from fans' or fake ones. Known people might ask Twitter to put a blue circle with white thick mark next to their name as a sign of verrified account.
+
+**Unfortunately, for some reason this function stopped returning home timeline.**
+
+```{r timeline}
+Homework1_2 <- get_timelines(user="serenawilliams",
+                             home=TRUE)
+
+Homework1_2_2 <- get_timelines(user="serenawilliams",
+                             home=FALSE)
+
+## Smart way of comparing two vectors
+sum(Homework1_2 %$% status_id==Homework1_2_2 %$% status_id)
+
+## Save timeline
+Homework1_2 %>%
+  save_as_csv("Homework1_2.csv")
+
+Homework1_2_2 %>%
+  save_as_csv("Homework1_2_2.csv")
+```
+
+<!-- CSS styling -->
+<style>
+    html {
+        height: 100%;
+        font-size: 62.5%;
+    }
+    body {
+        text-align: justify;
+        height: 100%;
+        font-size: 1.6em;
+        font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
+    }
+    h1, h2, h3 {
+        text-align: center;
+    }
+    h4.author, h4.date {
+        margin: 0.75em 0 0 0;
+        text-align: center;
+    }
+    h2, h3, h4, h5, h6 {
+        margin: 2em 0 1em 0;
+    }
+    div#header {
+        margin: 1em 0 1em 0;
+    }
+    hr {
+        margin: 2em 0 2em 0;
+    }
+    pre {
+        margin-bottom: 2em;
+    }
+</style>
